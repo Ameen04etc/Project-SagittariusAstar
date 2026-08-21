@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Compiled Python extensions
+*.pyd
+
+# C/C++ build files
+*.obj
+*.o
+*.dll
+*.lib
+*.exp
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Qt generated/build files
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

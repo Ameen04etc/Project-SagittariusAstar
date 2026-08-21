@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Python314/include",
+                "C:/Users/Ameen Aazam/AppData/Roaming/Python/Python314/site-packages/pybind11/include",
+                "C:/Qt/6.11.1/msvc2022_64/include",
+                "C:/Qt/6.11.1/msvc2022_64/include/QtCore",
+                "C:/Qt/6.11.1/msvc2022_64/include/QtGui",
+                "C:/Qt/6.11.1/msvc2022_64/include/QtWidgets",
+                "C:/opencv/build/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.26100.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}

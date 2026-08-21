@@ -1,0 +1,1063 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SagittariusA</class>
+ <widget class="QMainWindow" name="SagittariusA">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>436</width>
+    <height>336</height>
+   </rect>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>16777215</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <italic>false</italic>
+        <kerning>false</kerning>
+        <fontweight>Thin</fontweight>
+       </font>
+      </property>
+      <property name="cursor">
+       <cursorShape>ArrowCursor</cursorShape>
+      </property>
+      <property name="tabPosition">
+       <enum>QTabWidget::TabPosition::West</enum>
+      </property>
+      <property name="tabShape">
+       <enum>QTabWidget::TabShape::Rounded</enum>
+      </property>
+      <property name="currentIndex">
+       <number>3</number>
+      </property>
+      <property name="elideMode">
+       <enum>Qt::TextElideMode::ElideNone</enum>
+      </property>
+      <property name="tabsClosable">
+       <bool>false</bool>
+      </property>
+      <property name="movable">
+       <bool>false</bool>
+      </property>
+      <property name="tabBarAutoHide">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="Plottables">
+       <attribute name="title">
+        <string>Plottables</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_9">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QTabWidget" name="PlotWindows">
+          <property name="focusPolicy">
+           <enum>Qt::FocusPolicy::ClickFocus</enum>
+          </property>
+          <property name="tabPosition">
+           <enum>QTabWidget::TabPosition::East</enum>
+          </property>
+          <property name="currentIndex">
+           <number>0</number>
+          </property>
+          <property name="tabsClosable">
+           <bool>true</bool>
+          </property>
+          <property name="tabBarAutoHide">
+           <bool>false</bool>
+          </property>
+          <widget class="QWidget" name="PaneContainer">
+           <attribute name="title">
+            <string>Window 1</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayout_5">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0">
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QWidget" name="WaveWindow" native="true"/>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="tab">
+           <attribute name="title">
+            <string>Page</string>
+           </attribute>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="Database">
+       <attribute name="title">
+        <string>Database</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_8">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QSplitter" name="spltr_database">
+          <property name="cursor">
+           <cursorShape>ArrowCursor</cursorShape>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::Shape::Panel</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Shadow::Sunken</enum>
+          </property>
+          <property name="lineWidth">
+           <number>0</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Vertical</enum>
+          </property>
+          <property name="handleWidth">
+           <number>2</number>
+          </property>
+          <widget class="QWidget" name="layoutWidget">
+           <layout class="QHBoxLayout" name="hlout_database" stretch="10,1">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <property name="sizeConstraint">
+             <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
+            </property>
+            <item>
+             <widget class="QStackedWidget" name="stackedWidget">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="focusPolicy">
+               <enum>Qt::FocusPolicy::ClickFocus</enum>
+              </property>
+              <property name="currentIndex">
+               <number>0</number>
+              </property>
+              <widget class="QWidget" name="page_exec">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout">
+                <property name="spacing">
+                 <number>0</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <layout class="QVBoxLayout" name="vlout_files_exec">
+                  <property name="spacing">
+                   <number>2</number>
+                  </property>
+                  <item>
+                   <widget class="QWidget" name="ToolPanel_exec" native="true">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="cursor">
+                     <cursorShape>ArrowCursor</cursorShape>
+                    </property>
+                    <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,1,1,4,1">
+                     <property name="spacing">
+                      <number>4</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="QToolButton" name="back_exec">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QToolButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(45, 45, 45);
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QToolButton:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string/>
+                       </property>
+                       <property name="arrowType">
+                        <enum>Qt::ArrowType::LeftArrow</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QToolButton" name="fwd_exec">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QToolButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(45, 45, 45);
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QToolButton:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string>...</string>
+                       </property>
+                       <property name="arrowType">
+                        <enum>Qt::ArrowType::RightArrow</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QToolButton" name="up_exec">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QToolButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(45, 45, 45);
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QToolButton:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string>...</string>
+                       </property>
+                       <property name="arrowType">
+                        <enum>Qt::ArrowType::UpArrow</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="PathLineEdit" name="path_exec">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>16777215</width>
+                         <height>16777215</height>
+                        </size>
+                       </property>
+                       <property name="focusPolicy">
+                        <enum>Qt::FocusPolicy::ClickFocus</enum>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QLineEdit {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(60, 60, 60);
+    padding: 3px;
+}
+
+QLineEdit:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QLineEdit:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string/>
+                       </property>
+                       <property name="frame">
+                        <bool>true</bool>
+                       </property>
+                       <property name="echoMode">
+                        <enum>QLineEdit::EchoMode::Normal</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLineEdit" name="search_exec">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="focusPolicy">
+                        <enum>Qt::FocusPolicy::ClickFocus</enum>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QLineEdit {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(60, 60, 60);
+    padding: 3px;
+}
+
+QLineEdit:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QLineEdit:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="frame">
+                        <bool>true</bool>
+                       </property>
+                       <property name="placeholderText">
+                        <string>Search</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QTreeView" name="FileSystem_exec">
+                    <property name="focusPolicy">
+                     <enum>Qt::FocusPolicy::TabFocus</enum>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">QTreeView {
+    background-color: rgb(37, 37, 38);
+    border: none;
+}
+
+QTreeView::item {
+    padding: 2px;
+}
+
+QTreeView::item:selected {
+    background-color: rgb(70, 70, 70);
+    color: white;
+}
+
+QTreeView::item:hover {
+    background-color: rgb(50, 50, 50);
+}
+
+QTreeView::item:selected:hover {
+    background-color: rgb(70, 70, 70);
+}
+
+QHeaderView::section {
+    background-color: rgb(37, 37, 38);
+    color: white;
+
+    border: none;
+
+    padding: 4px;
+}
+
+QHeaderView::section {
+    background-color: rgb(45, 45, 45);
+    border: none;
+    border-right: 1px solid rgb(38, 38, 38);
+    padding-left: 6px;
+
+}</string>
+                    </property>
+                    <property name="frameShape">
+                     <enum>QFrame::Shape::NoFrame</enum>
+                    </property>
+                    <property name="frameShadow">
+                     <enum>QFrame::Shadow::Plain</enum>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="page_run">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_3">
+                <property name="spacing">
+                 <number>0</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <layout class="QVBoxLayout" name="vlout_files_run">
+                  <property name="spacing">
+                   <number>2</number>
+                  </property>
+                  <item>
+                   <widget class="QWidget" name="ToolPanel_run" native="true">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="cursor">
+                     <cursorShape>ArrowCursor</cursorShape>
+                    </property>
+                    <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,1,1,4,1">
+                     <property name="spacing">
+                      <number>4</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="QToolButton" name="back_run">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QToolButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(45, 45, 45);
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QToolButton:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string/>
+                       </property>
+                       <property name="arrowType">
+                        <enum>Qt::ArrowType::LeftArrow</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QToolButton" name="fwd_run">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QToolButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(45, 45, 45);
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QToolButton:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string>...</string>
+                       </property>
+                       <property name="arrowType">
+                        <enum>Qt::ArrowType::RightArrow</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QToolButton" name="up_run">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QToolButton {
+    /* Use forward slashes for the file path */
+    qproperty-icon: url(&quot;C:/Users/Ameen Aazam/Downloads/up-arrow-svgrepo-com.svg&quot;);
+    
+    /* Adjust this to match the size you want the arrow to render */
+    qproperty-iconSize: 15px 15px; 
+}
+QToolButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(45, 45, 45);
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QToolButton:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string>...</string>
+                       </property>
+                       <property name="arrowType">
+                        <enum>Qt::ArrowType::NoArrow</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="PathLineEdit" name="path_run">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>16777215</width>
+                         <height>16777215</height>
+                        </size>
+                       </property>
+                       <property name="focusPolicy">
+                        <enum>Qt::FocusPolicy::ClickFocus</enum>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QLineEdit {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(60, 60, 60);
+    padding: 3px;
+}
+
+QLineEdit:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QLineEdit:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="text">
+                        <string/>
+                       </property>
+                       <property name="frame">
+                        <bool>true</bool>
+                       </property>
+                       <property name="echoMode">
+                        <enum>QLineEdit::EchoMode::Normal</enum>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLineEdit" name="search_run">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="focusPolicy">
+                        <enum>Qt::FocusPolicy::ClickFocus</enum>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">QLineEdit {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(60, 60, 60);
+    padding: 3px;
+}
+
+QLineEdit:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QLineEdit:pressed {
+    background-color: rgb(50, 50, 50);
+}</string>
+                       </property>
+                       <property name="frame">
+                        <bool>true</bool>
+                       </property>
+                       <property name="placeholderText">
+                        <string>Search</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QTreeView" name="FileSystem_run">
+                    <property name="focusPolicy">
+                     <enum>Qt::FocusPolicy::TabFocus</enum>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">QTreeView {
+    background-color: rgb(37, 37, 38);
+    border: none;
+}
+
+QTreeView::item {
+    padding: 2px;
+}
+
+QTreeView::item:selected {
+    background-color: rgb(70, 70, 70);
+    color: white;
+}
+
+QTreeView::item:hover {
+    background-color: rgb(50, 50, 50);
+}
+
+QTreeView::item:selected:hover {
+    background-color: rgb(70, 70, 70);
+}
+
+QHeaderView::section {
+    background-color: rgb(37, 37, 38);
+    color: white;
+
+    border: none;
+
+    padding: 4px;
+}
+
+QHeaderView::section {
+    background-color: rgb(45, 45, 45);
+    border: none;
+    border-right: 1px solid rgb(38, 38, 38);
+    padding-left: 6px;
+
+}</string>
+                    </property>
+                    <property name="frameShape">
+                     <enum>QFrame::Shape::NoFrame</enum>
+                    </property>
+                    <property name="frameShadow">
+                     <enum>QFrame::Shadow::Plain</enum>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </widget>
+             </widget>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="side_lout" stretch="10">
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <property name="sizeConstraint">
+               <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
+              </property>
+              <item>
+               <widget class="QWidget" name="vlout_exec_run" native="true">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>30</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>30</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0">
+                 <property name="spacing">
+                  <number>4</number>
+                 </property>
+                 <property name="sizeConstraint">
+                  <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
+                 </property>
+                 <property name="leftMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="VPushButton" name="Executables_btn">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>30</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>30</width>
+                     <height>16777215</height>
+                    </size>
+                   </property>
+                   <property name="acceptDrops">
+                    <bool>false</bool>
+                   </property>
+                   <property name="styleSheet">
+                    <string notr="true">QPushButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(60, 60, 60);
+    padding: 3px;
+}
+
+QPushButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QPushButton:pressed {
+    background-color: rgb(50, 50, 50);
+}
+
+QPushButton:checked {
+    background-color: rgb(80, 120, 200);
+}</string>
+                   </property>
+                   <property name="text">
+                    <string>Executables</string>
+                   </property>
+                   <property name="checkable">
+                    <bool>true</bool>
+                   </property>
+                   <property name="autoDefault">
+                    <bool>false</bool>
+                   </property>
+                   <property name="default">
+                    <bool>false</bool>
+                   </property>
+                   <property name="flat">
+                    <bool>false</bool>
+                   </property>
+                   <attribute name="buttonGroup">
+                    <string notr="true">buttonGroup</string>
+                   </attribute>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="VPushButton" name="Runs_btn">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>30</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>30</width>
+                     <height>16777215</height>
+                    </size>
+                   </property>
+                   <property name="styleSheet">
+                    <string notr="true">QPushButton {
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(60, 60, 60);
+    padding: 3px;
+}
+
+QPushButton:hover {
+    background-color: rgb(75, 75, 75);
+}
+
+QPushButton:pressed {
+    background-color: rgb(50, 50, 50);
+}
+
+QPushButton:checked {
+    background-color: rgb(80, 120, 200);
+}</string>
+                   </property>
+                   <property name="text">
+                    <string>Runs</string>
+                   </property>
+                   <property name="checkable">
+                    <bool>true</bool>
+                   </property>
+                   <attribute name="buttonGroup">
+                    <string notr="true">buttonGroup</string>
+                   </attribute>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="Calculator">
+       <attribute name="title">
+        <string>Calculator</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="Editor">
+       <attribute name="title">
+        <string>Editor</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_7">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QSplitter" name="splitter">
+          <property name="orientation">
+           <enum>Qt::Orientation::Vertical</enum>
+          </property>
+          <widget class="QTabWidget" name="tabWidget_2">
+           <widget class="QWidget" name="tab_2">
+            <attribute name="title">
+             <string>Tab 1</string>
+            </attribute>
+            <layout class="QHBoxLayout" name="horizontalLayout">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QPlainTextEdit" name="plainTextEdit"/>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="tab_3">
+            <attribute name="title">
+             <string>Tab 2</string>
+            </attribute>
+           </widget>
+          </widget>
+          <widget class="QWidget" name="terminalout" native="true"/>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>VPushButton</class>
+   <extends>QPushButton</extends>
+   <header location="global">vpushbutton</header>
+  </customwidget>
+  <customwidget>
+   <class>PathLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>pathlineedit.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+ </buttongroups>
+</ui>

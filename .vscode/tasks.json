@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: cl.exe build active file",
+            "command": "cl.exe",
+            "args": [
+                    "/Zi",
+                    "/nologo",
+
+                    "/EHsc",
+                    "/EHa",
+
+                    "/std:c++17",
+                    "/Zc:__cplusplus",
+                    "/permissive-",
+
+                    "/I${env:APPDATA}\\Python\\Python314\\site-packages\\pybind11\\include",
+                    "/IC:\\Python314\\include",
+                    "/IC:\\opencv\\build\\include",
+                    "/IC:\\Qt\\6.11.1\\msvc2022_64\\include",
+                    "/IC:\\Qt\\6.11.1\\msvc2022_64\\include\\QtGui",
+                    "/IC:\\Qt\\6.11.1\\msvc2022_64\\include\\QtCore",
+
+                    "/Fe${fileDirname}\\${fileBasenameNoExtension}.exe",
+                    "${file}",
+
+                    "/link",
+                    "/LIBPATH:C:\\Python314\\libs"
+                ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Build Sagittarius A C++ file with MSVC"
+        }
+    ]
+}
