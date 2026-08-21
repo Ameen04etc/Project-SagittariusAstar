@@ -15,7 +15,8 @@ from PySide6.QtGui import     (QPainter, QColor, QPen,
                                QPixmap, QFont, QMouseEvent,
                                QImage, QCursor, QPainterPath,
                                QStandardItemModel, QStandardItem,
-                               QFontMetrics, QKeySequence, QTextFormat)
+                               QFontMetrics, QKeySequence, QTextFormat,
+                               QTextCursor)
 from enum import Enum, auto
 from typing import cast
 import numpy as np
@@ -147,6 +148,38 @@ class CodeEditor(QPlainTextEdit):
         selection.cursor.clearSelection()
         self.setExtraSelections([selection])
 
+    def BlockIndent(self):
+        cursor = self.textCursor()
+        cursor.beginEditBlock()
+
+        currentBlock = self.Selection.FirstBlock
+        while currentBlock.isValid():
+            blockCursor = QTextCursor(currentBlock)
+            blockCursor.insertText("\t")
+
+            if currentBlock == self.Selection.LastBlock: break
+            currentBlock = currentBlock.next()
+
+        cursor.endEditBlock()
+
+    def BlockUnIndent(self):
+        cursor   = self.textCursor()
+        codeText = self.document()
+
+        cursor.beginEditBlock()
+
+        currentBlock = self.Selection.FirstBlock
+        while currentBlock.isValid():
+            blockCursor = QTextCursor(currentBlock)
+            if codeText.characterAt(blockCursor.position()) == "\t":
+                blockCursor.deleteChar()
+            
+            if currentBlock == self.Selection.LastBlock: break
+            currentBlock = currentBlock.next()
+
+
+        cursor.endEditBlock()
+
     def updateLineData(self, *args):
         totalLines = self.blockCount()
         cursLine = self.textCursor().blockNumber()
@@ -161,9 +194,22 @@ class CodeEditor(QPlainTextEdit):
         cursor = self.textCursor()
 
         if cursor.hasSelection():
-            pass
+            self.Selection.Select = True
+            selectStart = cursor.selectionStart()
+            selectStop  = cursor.selectionEnd()
+            CodeText    = self.document()
+
+            if selectStop > selectStart and CodeText.findBlock(selectStop).position() == selectStop:
+                selectStop -= 1
+
+            self.Selection.FirstBlock = CodeText.findBlock(selectStart)
+            self.Selection.LastBlock  = CodeText.findBlock(selectStop)
         else:
             self.Selection.resetSelection()
+
+        # print(self.Selection.Select,"\n",
+        #       self.Selection.FirstBlock.blockNumber(), "\n",
+        #       self.Selection.LastBlock.blockNumber())
     
     def SignalManager(self):
         self.blockCountChanged.connect(self.updateLineData)
@@ -191,19 +237,36 @@ class CodeEditor(QPlainTextEdit):
             self.textCursor().insertText("\n" + indentation)
             return
 
+        elif e.key() == Qt.Key_Tab:
+            if self.Selection.Select:
+                self.BlockIndent()
+                return
+
+        elif e.key() == Qt.Key_Backtab:
+            if self.Selection.Select:
+                self.BlockUnIndent()
+                return
+            else:
+                codeText     = self.document()
+                currentBlock = codeText.findBlock(self.textCursor().position())
+                blockCursor  = QTextCursor(currentBlock)
+                if codeText.characterAt(blockCursor.position()) == "\t":
+                    blockCursor.deleteChar()
+                return
+
         super().keyPressEvent(e)
 
 
 class CodeSelection:
     def __init__(self):
-        Select     = False
-        FirstBlock = None
-        LastBlock  = None
+        self.Select     = False
+        self.FirstBlock = None
+        self.LastBlock  = None
 
     def resetSelection(self):
-        Select     = False
-        FirstBlock = None
-        LastBlock  = None
+        self.Select     = False
+        self.FirstBlock = None
+        self.LastBlock  = None
 
 
 class  MainWindow(QMainWindow):
