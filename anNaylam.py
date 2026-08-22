@@ -16,7 +16,7 @@ from PySide6.QtGui import     (QPainter, QColor, QPen,
                                QImage, QCursor, QPainterPath,
                                QStandardItemModel, QStandardItem,
                                QFontMetrics, QKeySequence, QTextFormat,
-                               QTextCursor)
+                               QTextCursor, QTextBlock)
 from enum import Enum, auto
 from typing import cast
 import numpy as np
@@ -113,8 +113,11 @@ class CodeEditor(QPlainTextEdit):
 
     def __init__(self, parent = None):
         super().__init__(parent)
+        self.Language  = "Python"
+
         self.Selection = CodeSelection()
-        self.Font       = QFont()
+
+        self.Font = QFont()
         self.Font.setFamilies(["Consolas", "Courier New"])
         self.Font.setPixelSize(15)
 
@@ -125,6 +128,8 @@ class CodeEditor(QPlainTextEdit):
         self.cellWidth  = self.fontMetrics().horizontalAdvance("W")
         self.cellHeight = self.fontMetrics().height()
         self.Ascent     = self.fontMetrics().ascent()
+
+        self.SpacePerTab = 4
 
         self.setLineWrapMode(
             QPlainTextEdit.LineWrapMode.NoWrap
@@ -154,8 +159,7 @@ class CodeEditor(QPlainTextEdit):
 
         currentBlock = self.Selection.FirstBlock
         while currentBlock.isValid():
-            blockCursor = QTextCursor(currentBlock)
-            blockCursor.insertText("\t")
+            self.Indent(currentBlock)
 
             if currentBlock == self.Selection.LastBlock: break
             currentBlock = currentBlock.next()
@@ -164,21 +168,69 @@ class CodeEditor(QPlainTextEdit):
 
     def BlockUnIndent(self):
         cursor   = self.textCursor()
-        codeText = self.document()
-
+        
         cursor.beginEditBlock()
 
         currentBlock = self.Selection.FirstBlock
         while currentBlock.isValid():
-            blockCursor = QTextCursor(currentBlock)
-            if codeText.characterAt(blockCursor.position()) == "\t":
-                blockCursor.deleteChar()
-            
+            self.unIndent(currentBlock)
             if currentBlock == self.Selection.LastBlock: break
             currentBlock = currentBlock.next()
 
-
         cursor.endEditBlock()
+
+    def Indent(self, block : QTextBlock, InPlace = False):
+        if InPlace:
+            cursorPosition = self.textCursor().positionInBlock()
+            preText = block.text()[:cursorPosition]
+            totalSpace = len(preText) if preText else 0
+            toInsert = self.SpacePerTab - totalSpace % self.SpacePerTab
+            blockCursor = self.textCursor()
+
+        else:
+            toInsert = self.SpacePerTab
+            blockCursor = QTextCursor(block)
+        
+        blockCursor.insertText(" " * toInsert)
+
+    def unIndent(self, block : QTextBlock, InPlace = False):
+        blockCursor = QTextCursor(block)
+        codeText    = self.document()
+        if InPlace:
+            cursorPosition = self.textCursor().positionInBlock()
+            preText = block.text()[:cursorPosition]
+            spaces  = re.match(r"^\s+", preText)
+        else:
+            blockText   = block.text()
+            spaces      = re.match(r"^\s+", blockText)
+        totalSpace  = len(spaces.group(0).expandtabs(self.SpacePerTab)) if spaces else 0
+        if totalSpace == 0:
+            return
+    
+        toRem = totalSpace % self.SpacePerTab
+        if toRem == 0: toRem = self.SpacePerTab
+
+        print("Total =", totalSpace)
+        print(toRem)
+
+        spaceCount  = 0
+        while True:
+            char = codeText.characterAt(blockCursor.position())
+            if char == "\t":
+                remaining = toRem - spaceCount
+                toAdd = self.SpacePerTab - remaining
+                blockCursor.deleteChar()
+                if toAdd > 0:
+                    blockCursor.insertText(" " * toAdd)
+                break
+
+            elif char == " ":
+                blockCursor.deleteChar()
+                spaceCount += 1
+                if spaceCount == toRem:
+                    break
+            else:
+                break
 
     def updateLineData(self, *args):
         totalLines = self.blockCount()
@@ -230,7 +282,7 @@ class CodeEditor(QPlainTextEdit):
 
     def keyPressEvent(self, e):
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            text = self.textCursor().block().text()
+            text        = self.textCursor().block().text()
             match       = re.match(r"^\s+", text)
             indentation = match.group(0) if match else ""
 
@@ -242,16 +294,27 @@ class CodeEditor(QPlainTextEdit):
                 self.BlockIndent()
                 return
 
+            else:
+                self.Indent(self.textCursor().block(), InPlace = True)
+                return
+
+        elif e.key() == Qt.Key_Backspace:
+            if not self.Selection.Select:
+                cursor = self.textCursor()
+                blockText = cursor.block().text()
+                preText =  blockText[:cursor.positionInBlock()]
+                uniqChars = set(preText)
+                if not (uniqChars - {" ", "\t"}) and uniqChars:
+                    self.unIndent(cursor.block(), InPlace = True)
+                    return
+
         elif e.key() == Qt.Key_Backtab:
             if self.Selection.Select:
                 self.BlockUnIndent()
                 return
             else:
-                codeText     = self.document()
-                currentBlock = codeText.findBlock(self.textCursor().position())
-                blockCursor  = QTextCursor(currentBlock)
-                if codeText.characterAt(blockCursor.position()) == "\t":
-                    blockCursor.deleteChar()
+                codeBlock = self.textCursor().block()
+                self.unIndent(codeBlock)
                 return
 
         super().keyPressEvent(e)
