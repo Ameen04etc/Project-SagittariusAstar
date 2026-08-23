@@ -19,7 +19,7 @@ from PySide6.QtGui import     (QPainter, QColor, QPen,
                                QTextCursor, QTextBlock)
 from enum import Enum, auto
 from typing import cast
-import numpy as np
+import json
 import os
 import sys
 import re
@@ -29,11 +29,19 @@ import time
 import shiboken6
 import traceback
 
+
+class LineIndent(Enum):
+    Indent = auto()
+    Dedent = auto()
+    Keep   = auto()
+
+
 class MasterWidget(QWidget):
     
     def __init__(self, parent):
         super().__init__(parent)
         self.editor = CodeEditor(self)
+        self.Client = LSPClient()
         self.LayoutConfig()
 
     def LayoutConfig(self):
@@ -113,7 +121,7 @@ class CodeEditor(QPlainTextEdit):
 
     def __init__(self, parent = None):
         super().__init__(parent)
-        self.Language  = "Python"
+        self.Language  = PythonLanguage()
 
         self.Selection = CodeSelection()
 
@@ -282,11 +290,16 @@ class CodeEditor(QPlainTextEdit):
 
     def keyPressEvent(self, e):
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            cursor      = self.textCursor()
+            nextIndent  = self.Language.nextIndentation(cursor)
+            
             text        = self.textCursor().block().text()
-            match       = re.match(r"^\s+", text)
+            match       = re.match(r"^[ \t]*", text)
             indentation = match.group(0) if match else ""
 
             self.textCursor().insertText("\n" + indentation)
+            if nextIndent == LineIndent.Indent: self.Indent(cursor.block())
+
             return
 
         elif e.key() == Qt.Key_Tab:
@@ -300,9 +313,9 @@ class CodeEditor(QPlainTextEdit):
 
         elif e.key() == Qt.Key_Backspace:
             if not self.Selection.Select:
-                cursor = self.textCursor()
+                cursor    = self.textCursor()
                 blockText = cursor.block().text()
-                preText =  blockText[:cursor.positionInBlock()]
+                preText   =  blockText[:cursor.positionInBlock()]
                 uniqChars = set(preText)
                 if not (uniqChars - {" ", "\t"}) and uniqChars:
                     self.unIndent(cursor.block(), InPlace = True)
@@ -330,6 +343,146 @@ class CodeSelection:
         self.Select     = False
         self.FirstBlock = None
         self.LastBlock  = None
+
+
+class codeLanguage:
+    def nextIndentation(self, cursor : QTextCursor):
+        raise NotImplementedError
+
+    def commentSyntax(self):
+        raise NotImplementedError
+
+    def keyWords(self):
+        raise NotImplementedError
+
+class PythonLanguage(codeLanguage):
+
+    def nextIndentation(self, cursor : QTextCursor):
+        block = cursor.block()
+        preText = block.text()[:cursor.positionInBlock()]
+
+        """
+            rstrip ---> goes to the end of a string (preText in this case) and strips off
+            the characters passed in its argument from the right (" " and "\t" in this case) INPLACE
+            endswith operates on a string checks if its last element is the passed argument or not
+        """
+        decision = preText.rstrip(" \t").endswith(":")
+        if decision:
+            return LineIndent.Indent
+        else:
+            return LineIndent.Keep
+
+    def commentSyntax():
+        return "#"
+
+    def keyWords():
+        pass
+
+
+class readBufferState(Enum):
+    HEADER = auto()
+    BODY   = auto()
+
+
+class readBuffer:
+    def __init__(self):
+        self.Buffer = b""
+        self.State  = readBufferState.HEADER
+
+
+class LSPClient(QObject):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.process      = QProcess()
+        self.OutputBuffer = readBuffer()
+        self.BodyLength   = 0
+        self.ReceivedLen  = 0
+
+        self.process.readyReadStandardOutput.connect(self.readOutput)
+        self.process.readyReadStandardError.connect(self.readError)
+
+        self.startLSP()
+
+        initialize = {
+            "jsonrpc"   : "2.0",
+            "id"        : 1,
+            "method"    : "initialize",
+            "params"    : {
+                "processId"     : os.getpid(),
+                "clientInfo"    : {
+                    "name"      : "Sagittarius A*",
+                    "version"   : "1.0"
+                },
+                "rootUri"       : None,
+                "capabilities"  : {}
+
+            }
+        }
+        self.sendMessage(initialize)
+
+    def startLSP(self):
+        command = "pyright-langserver.cmd" if sys.platform == "win32" else "pyright-langserver"
+        self.process.start(
+            command,
+            ["--stdio"]
+        )
+
+        started = self.process.waitForStarted()
+
+        if not started:
+            print("Failed to start language server")
+            return
+
+        print("Language server started")
+
+    def sendMessage(self, message):
+        body = json.dumps(message).encode("utf-8")
+        header = (
+            f"Content-Length: {len(body)}\r\n"
+            f"\r\n"
+        ).encode("ascii")
+
+        self.process.write(header + body)
+
+    def readOutput(self):
+        data = bytes(self.process.readAllStandardOutput())
+        self.OutputBuffer.Buffer += data
+
+        self.checkBuffer()
+
+    def checkBuffer(self):
+        print("----------")
+        print("Buffer State =", self.OutputBuffer.State, "\r\n")
+        print(self.OutputBuffer.Buffer.decode("utf-8"), "\r\n\r\n")
+        while True:
+            if self.OutputBuffer.State == readBufferState.HEADER:
+                headerEnd = self.OutputBuffer.Buffer.find(b"\r\n\r\n")
+                if headerEnd != -1:
+                    Header = self.OutputBuffer.Buffer[:headerEnd].decode("utf-8")
+                    self.OutputBuffer.Buffer = self.OutputBuffer.Buffer[(headerEnd + 4):]       # <---- "\r\n\r\n" (total 4 bytes)
+                    print("Header =", Header)
+                    for line in Header.split("\r\n"):
+                        if line.startswith("Content-Length"):
+                            self.BodyLength = int(line.split(":")[1].strip())
+                            break
+                    self.OutputBuffer.State = readBufferState.BODY
+                    if len(self.OutputBuffer.Buffer) == 0:
+                        break
+
+            if self.OutputBuffer.State == readBufferState.BODY:
+                if len(self.OutputBuffer.Buffer) >= self.BodyLength:
+                    Body = self.OutputBuffer.Buffer[:self.BodyLength].decode("utf-8")
+                    self.OutputBuffer.Buffer = self.OutputBuffer.Buffer[self.BodyLength:]
+                    print("Body =", json.loads(Body))
+
+                    self.OutputBuffer.State = readBufferState.HEADER
+                    if self.OutputBuffer.Buffer: continue
+                    else: break
+                else: break
+
+
+    def readError(self):
+        print("Error")
 
 
 class  MainWindow(QMainWindow):
