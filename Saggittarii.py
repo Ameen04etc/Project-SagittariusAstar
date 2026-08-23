@@ -15,7 +15,7 @@ from numba import njit
 import os
 import numpy as np
 from supernovaEngine import *
-from terminalEngine import *
+from epsilonMajoris import *
 
 
 class MainWindow(QMainWindow):

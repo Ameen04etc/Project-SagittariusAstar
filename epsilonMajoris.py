@@ -1,3 +1,8 @@
+#=================
+# Terminal Engine
+#=================
+
+
 from importlib.resources import path
 from Sagittarius_A import Ui_SagittariusA
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget,
@@ -870,124 +875,108 @@ class TerminalParser:
                     self.Buffer.Cursor.Col -= 1
                 continue
             
-            # 2. State Machine Routing
             if self.state == ParserState.GROUND:
-                self._state_ground(ch)
+                self.stateGROUND(ch)
                 
             elif self.state == ParserState.ESCAPE:
-                self._state_escape(ch)
+                self.stateESC(ch)
 
             elif self.state == ParserState.OSC_STRING:
-                self._state_osc(ch)
+                self.stateOSC(ch)
                 
             elif self.state in (ParserState.CSI_ENTRY, ParserState.CSI_PARAM):
-                self._state_csi(ch)
+                self.stateCSI(ch)
 
-    def _state_ground(self, ch):
+    def stateGROUND(self, ch):
         if ch == '\x1b':
             self.state = ParserState.ESCAPE
         else:
-            # Just normal text, print it to the screen!
             self.Buffer.InsertCharacter(ch, self.Color, self.BackGround, self.Bold, self.Faint, self.Italic, self.UndLine, self.Db_UndLine, self.StrikeThru, self.Reverse, self.Conceal)
 
-    def _state_escape(self, ch):
+    def stateESC(self, ch):
         if ch == '[':
-            # We entered a Control Sequence Indicator (CSI)
             self.state = ParserState.CSI_ENTRY
-            self.csi_params = [""] # Reset our parameter buffer
+            self.csi_params = [""]
         elif ch == ']':
-            # It's a window title/OSC command!
             self.state = ParserState.OSC_STRING
         else:
-            # It was a different escape code (like \x1bM for reverse index)
-            # Handle it, then go back to ground
             self.state = ParserState.GROUND
 
-    def _state_csi(self, ch):
+    def stateCSI(self, ch):
         if ch.isdigit() or ch == '?':
             self.state = ParserState.CSI_PARAM
             self.csi_params[-1] += ch
             
         elif ch == ';':
             self.state = ParserState.CSI_PARAM
-            self.csi_params.append("") # Get ready for the next number
+            self.csi_params.append("")
             
         elif ch.isalpha():
-            # An alphabetical letter means the sequence is DONE!
-            self._dispatch_csi(ch)
-            self.state = ParserState.GROUND  # Reset back to normal text!
+            self.dispatchCSI(ch)
+            self.state = ParserState.GROUND
 
-    def _state_osc(self, ch):
-        # The sequence ends when we hit the Bell (\x07) 
-        # or the String Terminator (\x1b\\)
+    def stateOSC(self, ch):
         if ch == '\x07' or ch == '\x9c':
             self.state = ParserState.GROUND
 
-    def _dispatch_csi(self, final_char):
-        # Helper to safely get the first parameter as an integer, defaulting to 1 or 0
-        def get_param(index=0, default=1):
+    def dispatchCSI(self, final_char):
+        def getParam(index=0, default=1):
             if index < len(self.csi_params) and self.csi_params[index]:
                 # Ignore private mode markers like '?' for simple int conversion
                 clean_param = self.csi_params[index].replace('?', '')
                 return int(clean_param) if clean_param.isdigit() else default
             return default
 
-        # ----------------------------------------------------
-        # SGR (Select Graphic Rendition) - Colors & Formatting
-        # ----------------------------------------------------
+        # SGR (Select Graphic Rendition)
         if final_char == 'm':
-            # Default to reset (0) if no parameters are provided
+            # Default
             if not self.csi_params or self.csi_params == [""]:
                 self.SGR_Dict[0]()
             
-            # Standard 1-code SGR (e.g., \x1b[31m)
+            # Standard 1-code SGR
             elif len(self.csi_params) == 1:
-                code = get_param(0, 0)
+                code = getParam(0, 0)
                 self.SGR_Dict.get(code, lambda: None)()
                 
-            # 256-Color Mode (e.g., \x1b[38;5;214m)
+            # 256-Color Mode
             elif len(self.csi_params) == 3 and self.csi_params[1] == "5":
-                idx = get_param(2, 0)
+                idx = getParam(2, 0)
                 if self.csi_params[0] == "38":
                     self.Color = QColor(*self.Palette[idx])
                 elif self.csi_params[0] == "48":
                     self.BackGround = QColor(*self.Palette[idx])
                     
-            # True Color RGB Mode (e.g., \x1b[38;2;255;100;50m)
+            # True Color RGB Mode
             elif len(self.csi_params) == 5 and self.csi_params[1] == "2":
-                r, g, b = get_param(2), get_param(3), get_param(4)
+                r, g, b = getParam(2), getParam(3), getParam(4)
                 if self.csi_params[0] == "38":
                     self.Color = QColor(r, g, b)
                 elif self.csi_params[0] == "48":
                     self.BackGround = QColor(r, g, b)
 
-        # ----------------------------------------------------
         # Cursor Relocation
-        # ----------------------------------------------------
         elif final_char in ('H', 'f'):
-            row = get_param(0, 1)
-            col = get_param(1, 1)
+            row = getParam(0, 1)
+            col = getParam(1, 1)
             self.Buffer.Cursor.Row = row - 1
             self.Buffer.Cursor.Col = col - 1
 
         elif final_char == 'A': # Cursor Up
-            self.Buffer.Cursor.Row -= get_param(0, 1)
+            self.Buffer.Cursor.Row -= getParam(0, 1)
         elif final_char == 'B': # Cursor Down
-            self.Buffer.Cursor.Row += get_param(0, 1)
+            self.Buffer.Cursor.Row += getParam(0, 1)
         elif final_char == 'C': # Cursor Forward
-            self.Buffer.Cursor.Col += get_param(0, 1)
+            self.Buffer.Cursor.Col += getParam(0, 1)
         elif final_char == 'D': # Cursor Back
-            self.Buffer.Cursor.Col -= get_param(0, 1)
+            self.Buffer.Cursor.Col -= getParam(0, 1)
         elif final_char == 'G': # Cursor Horizontal Absolute
-            self.Buffer.Cursor.Col = get_param(0, 1) - 1
+            self.Buffer.Cursor.Col = getParam(0, 1) - 1
         elif final_char == 'd': # Cursor Vertical Absolute
-            self.Buffer.Cursor.Row = get_param(0, 1) - 1
+            self.Buffer.Cursor.Row = getParam(0, 1) - 1
 
-        # ----------------------------------------------------
         # Screen / Line Erasing
-        # ----------------------------------------------------
         elif final_char == 'J':
-            param = get_param(0, 0)
+            param = getParam(0, 0)
             if param == 0:
                 self.Buffer.Erase_Scrn_Curs_End()
             elif param == 1:
@@ -996,34 +985,28 @@ class TerminalParser:
                 self.Buffer.ClearBuffer()
 
         elif final_char == 'K':
-            param = get_param(0, 0)
+            param = getParam(0, 0)
             if param == 0:
                 self.Buffer.Erase_Line_Curs_End()
             elif param == 1:
                 self.Buffer.Erase_Line_Start_Curs()
             elif param == 2:
                 self.Buffer.ClearLine()
-        # ----------------------------------------------------
-        # Screen / Line Erasing
-        # ----------------------------------------------------
+        
         elif final_char == 'X': # Erase Character (ECH)
-            count = get_param(0, 1)
+            count = getParam(0, 1)
             row = self.Buffer.Cursor.Row
             col = self.Buffer.Cursor.Col
             
-            # Make sure we don't crash if the row doesn't exist
             if 0 <= row < len(self.Buffer.lines):
                 cells = self.Buffer.lines[row].cells
-                # Replace the characters with spaces
                 for i in range(count):
                     if col + i < len(cells):
                         cells[col + i].char = " "
                         if (col + i) not in self.Buffer.DirtyCells[row]:
                             self.Buffer.DirtyCells[row].append(col + i)
 
-        # ----------------------------------------------------
-        # Private Modes (Like Cursor Visibility: ?25h / ?25l)
-        # ----------------------------------------------------
+        # Private Modes
         elif final_char == 'h':
             if self.csi_params and "?25" in self.csi_params[0]:
                 self.CursVis = True

@@ -270,7 +270,7 @@ class CodeEditor(QPlainTextEdit):
         # print(self.Selection.Select,"\n",
         #       self.Selection.FirstBlock.blockNumber(), "\n",
         #       self.Selection.LastBlock.blockNumber())
-    
+
     def SignalManager(self):
         self.blockCountChanged.connect(self.updateLineData)
         self.cursorPositionChanged.connect(self.updateLineData)
@@ -391,6 +391,7 @@ class readBuffer:
 
 
 class LSPClient(QObject):
+
     def __init__(self, parent = None):
         super().__init__(parent)
         self.process      = QProcess()
