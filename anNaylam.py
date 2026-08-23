@@ -29,6 +29,11 @@ import time
 import shiboken6
 import traceback
 
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
 
 class LineIndent(Enum):
     Indent = auto()
@@ -355,6 +360,7 @@ class codeLanguage:
     def keyWords(self):
         raise NotImplementedError
 
+
 class PythonLanguage(codeLanguage):
 
     def nextIndentation(self, cursor : QTextCursor):
@@ -421,6 +427,13 @@ class LSPClient(QObject):
         }
         self.sendMessage(initialize)
 
+        initialized = {
+            "jsonrpc": "2.0",
+            "method": "initialized",
+            "params": {}
+        }
+        self.sendMessage(initialized)
+
     def startLSP(self):
         command = "pyright-langserver.cmd" if sys.platform == "win32" else "pyright-langserver"
         self.process.start(
@@ -429,6 +442,7 @@ class LSPClient(QObject):
         )
 
         started = self.process.waitForStarted()
+        print(f"{BLUE}waiting{RESET}")
 
         if not started:
             print("Failed to start language server")
@@ -453,15 +467,16 @@ class LSPClient(QObject):
 
     def checkBuffer(self):
         print("----------")
-        print("Buffer State =", self.OutputBuffer.State, "\r\n")
+        # print("Buffer State =", self.OutputBuffer.State, "\r\n")
         print(self.OutputBuffer.Buffer.decode("utf-8"), "\r\n\r\n")
+        print("----------")
         while True:
             if self.OutputBuffer.State == readBufferState.HEADER:
                 headerEnd = self.OutputBuffer.Buffer.find(b"\r\n\r\n")
                 if headerEnd != -1:
                     Header = self.OutputBuffer.Buffer[:headerEnd].decode("utf-8")
                     self.OutputBuffer.Buffer = self.OutputBuffer.Buffer[(headerEnd + 4):]       # <---- "\r\n\r\n" (total 4 bytes)
-                    print("Header =", Header)
+                    # print("Header =", Header)
                     for line in Header.split("\r\n"):
                         if line.startswith("Content-Length"):
                             self.BodyLength = int(line.split(":")[1].strip())
@@ -474,13 +489,32 @@ class LSPClient(QObject):
                 if len(self.OutputBuffer.Buffer) >= self.BodyLength:
                     Body = self.OutputBuffer.Buffer[:self.BodyLength].decode("utf-8")
                     self.OutputBuffer.Buffer = self.OutputBuffer.Buffer[self.BodyLength:]
-                    print("Body =", json.loads(Body))
+                    # print("Body =", json.loads(Body))
+                    self.readMessage(message = Body)
 
                     self.OutputBuffer.State = readBufferState.HEADER
                     if self.OutputBuffer.Buffer: continue
                     else: break
                 else: break
 
+    def readMessage(self, message):
+        if "id" in message:
+            if "result" in message:
+                self.handleResponse(message)
+            elif "error" in message:
+                self.handleError(message)
+
+        elif "method" in message:
+            self.handleNotification(message)
+
+    def handleError(self, message):
+        print("Error:\r\n", message, "\r\n\r\n")
+
+    def handleResponse(self, message):
+        print("Response:\r\n", message, "\r\n\r\n")
+
+    def handleNotification(self, message):
+        print("Notification:\r\n", message, "\r\n\r\n")
 
     def readError(self):
         print("Error")
