@@ -1,2 +1,2 @@
-# Sagittarius_A
+# Sagittarius A*
 Towards an OpenSource Galaxy
