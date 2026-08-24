@@ -10,14 +10,14 @@ from PySide6.QtCore import    (QProcess, Qt, QObject,
                                Signal, QRectF, QRect,
                                Slot, QPointF, QPoint,
                                QSize, QEvent, QSignalBlocker,
-                               QTimer)
+                               QTimer, QRegularExpression)
 from PySide6.QtGui import     (QPainter, QColor, QPen,
                                QPixmap, QFont, QMouseEvent,
                                QImage, QCursor, QPainterPath,
                                QStandardItemModel, QStandardItem,
                                QFontMetrics, QKeySequence, QTextFormat,
                                QTextCursor, QTextBlock, QShortcut,
-                               QTextCharFormat)
+                               QTextCharFormat, QSyntaxHighlighter)
 from enum import Enum, auto
 from typing import cast
 from pathlib import Path
@@ -158,7 +158,7 @@ class CodeEditor(QPlainTextEdit):
 
     def __init__(self, parent = None):
         super().__init__(parent)
-        self.Language  = PythonLanguage()
+        self.Language  = PythonLanguage(self.document())
         self.version   = 1
         self.FilePath  = None
         self.FileExt   = "plaintext"
@@ -402,10 +402,14 @@ class CodeEditor(QPlainTextEdit):
             self.setPlainText(text)
 
     def diagnose(self, uri, version, diagnostics : dict):
+        print("Current =", self.version)
+        print("Response =", version)
+        print("FilePath =", self.FilePath)
+        print("uri =", uri)
         if version != self.version:
             return
-        if uri != self.FilePath:
-            return
+        # if uri != self.FilePath:
+        #     return
         
         self.Diagnostics = diagnostics
         self.errSquiggles.clear()
@@ -533,6 +537,10 @@ class codeLanguage:
 
 class PythonLanguage(codeLanguage):
 
+    def __init__(self, document):
+        super().__init__()
+        self.highlighter = SyntaxHighlighter(document, self)
+    
     def nextIndentation(self, cursor : QTextCursor):
         block = cursor.block()
         preText = block.text()[:cursor.positionInBlock()]
@@ -548,11 +556,59 @@ class PythonLanguage(codeLanguage):
         else:
             return LineIndent.Keep
 
-    def commentSyntax():
+    def commentSyntax(self):
         return "#"
 
-    def keyWords():
-        pass
+    def keyWords(self):
+        return {
+            "and", "as", "assert", "async", "await", "break", "case", "class", "continue", "def", "del", "elif", "else", "except",
+            "False", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "None", "nonlocal", "not", "or",
+            "pass", "raise", "return", "True", "try", "while", "with", "yield"
+        }
+    
+
+class SyntaxHighlighter(QSyntaxHighlighter):
+    
+    def __init__(self, document, language : codeLanguage):
+        super().__init__(document)
+        self.language = language
+
+        self.keywordFormat = QTextCharFormat()
+        self.keywordFormat.setForeground(QColor("#F45A98"))
+
+        self.commentFormat = QTextCharFormat()
+        self.commentFormat.setForeground(QColor("#5B5A5B"))
+
+        self.keywordRegex = QRegularExpression(
+            r"\b(" + "|".join(language.keyWords()) + r")\b"
+        )
+
+    def highlightBlock(self, text):
+        match = self.keywordRegex.match(text)
+
+        while match.hasMatch():
+            start = match.capturedStart()
+            length = match.capturedLength()
+
+            self.setFormat(
+                start,
+                length,
+                self.keywordFormat
+            )
+
+            match = self.keywordRegex.match(
+                text,
+                start + length
+            )
+        
+        commentStart = text.find(self.language.commentSyntax())
+
+        if commentStart != -1:
+            self.setFormat(
+                commentStart,
+                len(text) - commentStart,
+                self.commentFormat
+            )
 
 
 class readBufferState(Enum):
@@ -738,6 +794,7 @@ class LSPClient(QObject):
         uri     = params["uri"]
         version = params["version"]
         diagnostics = params["diagnostics"]
+        print(version, uri)
 
         self.diagnosticsReady.emit(uri, version, diagnostics)
 
