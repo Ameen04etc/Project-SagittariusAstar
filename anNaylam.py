@@ -56,7 +56,7 @@ class LineIndent(Enum):
 
 
 class MasterWidget(QWidget):
-    
+
     def __init__(self, parent):
         super().__init__(parent)
         self.editor = CodeEditor(self)
@@ -89,6 +89,8 @@ class MasterWidget(QWidget):
 
 
 class LineNumberArea(QWidget):
+    scrollEmit     = Signal(object)
+    lineSelectEmit = Signal(int, bool)
 
     def __init__(self, parent, editor : 'CodeEditor', Font : QFont):
         super().__init__(parent)
@@ -110,6 +112,7 @@ class LineNumberArea(QWidget):
         self.updateWidth()
 
     def paintEvent(self, event):
+        self.TotalLines = 0
         painter = QPainter(self)
         painter.setFont(self.Font)
         painter.fillRect(self.rect(), QColor(20, 20, 20))
@@ -120,8 +123,11 @@ class LineNumberArea(QWidget):
         top = round(self.editor.blockBoundingGeometry(block).translated(self.editor.contentOffset()).top())
         bottom = top + round(self.editor.blockBoundingRect(block).height())
 
+        self.TopIdx = block.blockNumber() + 1
+
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
+                self.TotalLines += 1
                 opacity = 80
                 if blockNumber == self.CursIdx:
                     opacity = 150
@@ -134,6 +140,7 @@ class LineNumberArea(QWidget):
 
                 painter.drawText(x, top + self.Ascent, line_str)
 
+                # painter.drawRect(x, top, self.RightMargin + textWidth, self.cellHeight)
                 # cellRect = QRect(
                 #     x + 1, top + 1,
                 #     self.cellWidth - 2, self.cellHeight - 2
@@ -151,6 +158,27 @@ class LineNumberArea(QWidget):
 
         self.setFixedWidth(newWidth)
         self.update()
+
+    def mousePressEvent(self, event):
+        x = event.position().x()
+        y = event.position().y()
+        if self.LeftMargin < x < self.width() - self.RightMargin:
+            LineSelect = int((y - round(self.editor.blockBoundingGeometry(self.editor.firstVisibleBlock()).translated(self.editor.contentOffset()).top())) / self.cellHeight) + self.TopIdx
+            if self.TopIdx <= LineSelect <= self.TotalLines + self.TopIdx - 1:
+                self.lineSelectEmit.emit((LineSelect - 1), False)
+        super().mousePressEvent(event)
+
+    def wheelEvent(self, event):
+        self.scrollEmit.emit(event)
+        super().wheelEvent(event)
+
+    def enterEvent(self, event):
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().leaveEvent(event)
 
 
 class CodeEditor(QPlainTextEdit):
@@ -259,9 +287,26 @@ class CodeEditor(QPlainTextEdit):
             painter.drawPath(locus)
 
     def reportChange(self):
-        print("changed")
         if self.NewFile: self.version = 1
         else: self.version += 1
+
+    def moveCursor(self, blockID, end = True):
+        block = self.document().findBlockByNumber(blockID)
+        if block.isValid():
+            cursor = QTextCursor(block)
+            if end:
+                cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock)
+            else:
+                cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock)
+            self.setTextCursor(cursor)
+            self.ensureCursorVisible()
+
+    def selectLine(self, blockID, *args):
+        block = self.document().findBlockByNumber(blockID)
+        if block.isValid():
+            cursor = QTextCursor(block)
+            cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
+            self.setTextCursor(cursor)
 
     def HighLightLine(self):
         line_color = QColor(255, 255, 255, 15)
@@ -443,6 +488,8 @@ class CodeEditor(QPlainTextEdit):
         self.updateRequest.connect(self.LineWidget.update)
         self.selectionChanged.connect(self.updateSelection)
         self.textChanged.connect(self.reportChange)
+        self.LineWidget.scrollEmit.connect(super().wheelEvent)
+        self.LineWidget.lineSelectEmit.connect(self.selectLine)
 
     def StyleConfig(self):
         self.setStyleSheet(
@@ -565,10 +612,10 @@ class PythonLanguage(codeLanguage):
             "False", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "None", "nonlocal", "not", "or",
             "pass", "raise", "return", "True", "try", "while", "with", "yield"
         }
-    
+
 
 class SyntaxHighlighter(QSyntaxHighlighter):
-    
+
     def __init__(self, document, language : codeLanguage):
         super().__init__(document)
         self.language = language
