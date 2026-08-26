@@ -725,6 +725,8 @@ class GlobalAxisWidget(QWidget):
 class GlobalPreView(QWidget):
     PreViewResize = Signal(float, float)
     XPortCommand  = Signal(float, float)
+    DragStart     = Signal()
+    DragStop      = Signal()
 
     def __init__(self, Parent, PaneManager : PaneManager):
         super().__init__()
@@ -737,24 +739,23 @@ class GlobalPreView(QWidget):
         self.RightEdit   = False
         self.Hold        = False
         self.Click       = False
+        self.Count       = 0
         self.setMouseTracking(True)
     
     def paintEvent(self, event):
-        print("PREVIEW WIDTH", self.width())
         super().paintEvent(event)
-        
+
         PrevPainter = QPainter(self)
         PrevPainter.setRenderHint(QPainter.Antialiasing)
         PrevPainter.fillRect(self.rect(), QColor(35, 35, 35))
-        
+
         rectangle = QRect(padding, 0,
                           (self.width() - 2 * padding), self.height()
                         )
-        
+
         for Trace in self.PaneManager.Panes[self.PaneManager.CurrentPane].Canvas.PreViewTraceMap:
-            print("TRACEWIDTH =", Trace.width())
             PrevPainter.drawPixmap(rectangle, Trace)
-        
+
         Vxmin          = self.PaneManager.Panes[0].ViewPort.View_XMin
         Axmin          = self.PaneManager.Panes[0].ViewPort.Abs_XMin
         Vxmax          = self.PaneManager.Panes[0].ViewPort.View_XMax
@@ -768,14 +769,27 @@ class GlobalPreView(QWidget):
         PrevPainter.setBrush(QColor(50, 50, 50, 160))
         PrevPainter.drawRect(self.LeftEdge, 0, w, h)
         PrevPainter.end()
-        
+
+    def countUP(self):
+        prevCount   = self.Count
+        self.Count += 1
+        if prevCount <= 0 and self.Count > 0:
+            print("Drag Started")
+            self.DragStart.emit()
+
+    def countDN(self):
+        prevCount   = self.Count
+        self.Count -= 1
+        if prevCount > 0 and self.Count <= 0:
+            print("Drag Stopped")
+            self.DragStop.emit()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.update()
         self.PreViewResize.emit(self.height(), self.width()) # <------ Commented out!
 
     def mouseMoveEvent(self, event):
-        super().mouseMoveEvent(event)
         Mouse_Pos = event.position()
         prevPos   = self.xpos
         self.xpos = Mouse_Pos.x()
@@ -786,11 +800,17 @@ class GlobalPreView(QWidget):
         elif ((self.xpos > self.LeftEdge + 3) and (self.xpos < self.RightEdge - 3)):
             if (not self.LeftEdit) and (not self.RightEdit):
                 if not self.Hold: self.setCursor(Qt.CursorShape.OpenHandCursor)
-                else: self.setCursor(Qt.CursorShape.ClosedHandCursor)
+                else:
+                    self.setCursor(Qt.CursorShape.ClosedHandCursor)
+                    self.countUP()
+                    QTimer.singleShot(50, self.countDN)
         else:
             if not self.Click: self.setCursor(Qt.CursorShape.ArrowCursor)
 
         if self.LeftEdit:
+            self.countUP()
+            QTimer.singleShot(50, self.countDN)
+
             Axrng          = self.PaneManager.Panes[0].ViewPort.Abs_XRng
             Axmin          = self.PaneManager.Panes[0].ViewPort.Abs_XMin
             xmax           = self.PaneManager.Panes[0].ViewPort.View_XMax
@@ -805,6 +825,9 @@ class GlobalPreView(QWidget):
             self.update()
         
         if self.RightEdit:
+            self.countUP()
+            QTimer.singleShot(50, self.countDN)
+
             Axrng          = self.PaneManager.Panes[0].ViewPort.Abs_XRng
             Axmin          = self.PaneManager.Panes[0].ViewPort.Abs_XMin
             xmin           = self.PaneManager.Panes[0].ViewPort.View_XMin
@@ -835,9 +858,10 @@ class GlobalPreView(QWidget):
             xmax  = (self.RightEdge - padding) * Axrng / (self.width() - 2 * padding) + Axmin
             self.XPortCommand.emit(xmin, xmax)
             self.update()
+        
+        super().mouseMoveEvent(event)
 
     def mousePressEvent(self, event):
-        super().mousePressEvent(event)
         Mouse_Pos  = event.position()
         self.xpos  = Mouse_Pos.x()
         self.Click = True
@@ -849,15 +873,18 @@ class GlobalPreView(QWidget):
             self.Hold = True
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
         else: self.Hold = False
+
+        super().mousePressEvent(event)
     
     def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
         if self.Hold:
             self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.LeftEdit  = False
         self.RightEdit = False
         self.Hold      = False
         self.Click     = False
+
+        super().mouseReleaseEvent(event)
 
 
 class GlobalCursorManager(QObject):
@@ -1461,7 +1488,7 @@ class WavePane(QObject):
         self.Canvas          .ViewPortUpdate    .connect(lambda w, h: setattr(self.ViewPort, 'CanvWidth' , w))
         self.Canvas          .ViewPortUpdate    .connect(lambda w, h: setattr(self.ViewPort, 'CanvHeight', h))
         self.Canvas          .ViewPortUpdate    .connect(lambda     : self.ViewPort.update())
-
+        self.Canvas          .ScrollCommand     .connect(lambda dy: self.Widget.ScrollBar.setValue(self.Widget.ScrollBar.value() - dy))
 
         self.Canvas          .ControlEvent      .connect(self.Controller.EventHandle)
         self.Widget.ScrollBar.ScrollCommand     .connect(self.ViewPort.ScrollRespond)
@@ -2179,6 +2206,7 @@ class PaneCanvas(QWidget):
     PreViewUpdate  = Signal()
     CurserUpdate   = Signal()
     ViewPortUpdate = Signal(float, float)
+    ScrollCommand  = Signal(object)
     
     @property
     def PixelRatio(self)      : return self.devicePixelRatioF()
@@ -2827,6 +2855,12 @@ class PaneCanvas(QWidget):
         super().keyReleaseEvent(event)
         self.ControlEvent.emit(event)
 
+    def wheelEvent(self, event):
+        angDel = event.angleDelta().y()
+        pixDel = angDel
+        self.ScrollCommand.emit(pixDel)
+        super().wheelEvent(event)
+
     def resizeEvent(self, event):
         def countUP():
             prevCount = self.ResizeCounter
@@ -3040,6 +3074,8 @@ class PaneAxis(QWidget):
 
 class ScrollBar(QScrollBar):
     ScrollCommand = Signal(float)
+    DragStart     = Signal()
+    DragStop      = Signal()
 
     @property
     def page(self): return self.pageStep()
@@ -3054,6 +3090,7 @@ class ScrollBar(QScrollBar):
         super().__init__()
         self.SCALE    = 1000
         self.ViewPort = ViewPort
+        self.Count    = 0
 
         self.setFixedWidth(8)
         self.setMinimum(0)
@@ -3063,12 +3100,26 @@ class ScrollBar(QScrollBar):
         self.setOrientation(Qt.Orientation.Vertical)
         self.setTracking(True)
         self.StyleConfig()
-        
+
         policy = self.sizePolicy()
         policy.setVerticalPolicy(QSizePolicy.Policy.Ignored)
         self.setSizePolicy(policy)
-        
+
         self.valueChanged.connect(self.PortCommand)
+
+    def countUP(self):
+        prevCount   = self.Count
+        self.Count += 1
+        if prevCount <= 0 and self.Count > 0:
+            print("Drag Started")
+            self.DragStart.emit()
+
+    def countDN(self):
+        prevCount   = self.Count
+        self.Count -= 1
+        if prevCount > 0 and self.Count <= 0:
+            print("Drag Stopped")
+            self.DragStop.emit()
 
     def PortSocket(self):
         self.blockSignals(True)
@@ -3080,8 +3131,10 @@ class ScrollBar(QScrollBar):
         self.StyleConfig()
         self.update()
         self.blockSignals(False)
-    
+
     def PortCommand(self):
+        self.countUP()
+        QTimer.singleShot(50, self.countDN)
         dy = (self.ViewPort.Abs_YMax - self.ViewPort.View_YMax) - self.value() / self.SCALE
         self.ScrollCommand.emit(dy)
 

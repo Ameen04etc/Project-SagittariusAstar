@@ -13,8 +13,8 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget,
 from PySide6.QtCore import    (QProcess, Qt, QObject,
                                Signal, QRectF, QRect,
                                Slot, QPointF, QPoint,
-                               QSize, QEvent, QSignalBlocker,
-                               QTimer)
+                               QSize, QEvent, QTimer,
+                               QSignalBlocker)
 from PySide6.QtGui import     (QPainter, QColor, QPen,
                                QPixmap, QFont, QMouseEvent,
                                QImage, QCursor, QPainterPath,
@@ -89,11 +89,11 @@ terminal/
 """
 
 
-RED = "\033[31m"
-GREEN = "\033[32m"
+RED    = "\033[31m"
+GREEN  = "\033[32m"
 YELLOW = "\033[33m"
-BLUE = "\033[34m"
-RESET = "\033[0m"
+BLUE   = "\033[34m"
+RESET  = "\033[0m"
 
 class MainTermWidget(QWidget):
 
