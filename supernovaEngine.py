@@ -1,3 +1,8 @@
+#===============
+# Render Engine
+#===============
+
+
 import os
 os.add_dll_directory(r"C:\opencv\build\x64\vc16\bin")
 os.add_dll_directory(r"C:\Qt\6.11.1\msvc2022_64\bin")
@@ -279,6 +284,8 @@ class WaveWindow(QObject):
 
         self.PreView        .PreViewResize    .connect(lambda h, w: self.PaneManager.PreViewResize.emit(h, w))
         self.PreView        .XPortCommand     .connect(lambda xmin, xmax: self.PaneManager.XPortBroadCast.emit(xmin, xmax, None, None, None, False))
+        self.PreView        .DragStart        .connect(lambda: self.PaneManager.DragStart.emit())
+        self.PreView        .DragStop         .connect(lambda: self.PaneManager.DragStop .emit())
 
         self.PreView        .XPortCommand     .connect(self.GlobalViewPort.SyncGlobalXPort)
         self.PreView        .PreViewResize    .emit   (self.PreView.height(), self.PreView.width())
@@ -1161,6 +1168,8 @@ class PaneManager(QObject):
     XZoomBroadCast    = Signal(object, object)
     XZoomStartBDC     = Signal(bool)
     listScrollBDC     = Signal(object)
+    DragStart         = Signal()
+    DragStop          = Signal()
 
     def __init__(self, WaveWidget : GlobalWaveWidget, ListWidget : QWidget, GlobalViewModel : GlobalViewModel, Splitter : QSplitter):
         super().__init__()
@@ -1408,6 +1417,8 @@ class PaneManager(QObject):
         self.PreViewResize                 .connect(lambda h, w: setattr(Pane.Canvas, 'PreViewWidth' , w))
         self.XZoomEnable                   .connect(lambda    l: setattr(Pane.Canvas, 'XZoom'        , l))
         self.YZoomEnable                   .connect(lambda    l: setattr(Pane.Canvas, 'YZoom'        , l))
+        self.DragStart                     .connect(lambda     : Pane.DragStart.emit())
+        self.DragStop                      .connect(lambda     : Pane.DragStop .emit())
 
         # self.PreViewResize                 .connect(Pane.Canvas   .ReBuildPreViewMap  )
         self.GlobalSignalAdded             .connect(Pane.ViewModel.AddPaneSignal      )
@@ -1439,6 +1450,8 @@ class WavePane(QObject):
     # Parent class for all informations and objects related to a wave pane
     ##====================================================================
     PaneSelected = Signal()
+    DragStart    = Signal()
+    DragStop     = Signal()
     
     def __init__(self, PaneID, GlobalViewModel : GlobalViewModel, ViewModel = None, ViewPort = None, WaveWidget = None, width = None):
         super().__init__()
@@ -1488,10 +1501,21 @@ class WavePane(QObject):
         self.Canvas          .ViewPortUpdate    .connect(lambda w, h: setattr(self.ViewPort, 'CanvWidth' , w))
         self.Canvas          .ViewPortUpdate    .connect(lambda w, h: setattr(self.ViewPort, 'CanvHeight', h))
         self.Canvas          .ViewPortUpdate    .connect(lambda     : self.ViewPort.update())
-        self.Canvas          .ScrollCommand     .connect(lambda dy: self.Widget.ScrollBar.setValue(self.Widget.ScrollBar.value() - dy))
+        self.Canvas          .ScrollCommand     .connect(lambda   dy: self.Widget.ScrollBar.setValue(self.Widget.ScrollBar.value() - dy))
+
+        self.Widget.ScrollBar.DragStart         .connect(lambda     : self.DragStart.emit())
+        self.Widget.ScrollBar.DragStop          .connect(lambda     : self.DragStop .emit())
+        self.DragStart                          .connect(lambda     : setattr(self.HitTest, 'Enable'  , False))
+        self.DragStart                          .connect(lambda     : setattr(self.Canvas , 'Dragging', True ))
+        self.DragStart                          .connect(lambda     : setattr(self.Canvas , 'PointXPx', None ))
+        self.DragStart                          .connect(lambda     : setattr(self.Canvas , 'PointYPx', None ))
+        self.DragStop                           .connect(lambda     : setattr(self.HitTest, 'Enable'  , True ))
+        self.DragStop                           .connect(lambda     : setattr(self.Canvas , 'Dragging', False))
 
         self.Canvas          .ControlEvent      .connect(self.Controller.EventHandle)
         self.Widget.ScrollBar.ScrollCommand     .connect(self.ViewPort.ScrollRespond)
+        self.DragStart                          .connect(self.Controller.HoverWidget.hide)
+        self.DragStop                           .connect(self.HitTest.Rebuild)
 
         self.Controller      .PaneSelected      .connect(lambda: self.PaneSelected.emit())
         self.HitTest         .FieldEmit         .connect(lambda field: setattr(self.Canvas, 'FieldMatrix', field))
@@ -2280,6 +2304,7 @@ class PaneCanvas(QWidget):
         self.ResizeCounter = 0
         self.ReSizeEnable  = True
         self.Resizing      = False
+        self.Dragging      = False
 
         self.debugonce     = True
 
@@ -2317,7 +2342,6 @@ class PaneCanvas(QWidget):
 
         if self.Resizing:
             for TraceMap in self.ViewTraceMap:
-                print("TRACEMAP WIDTH =", TraceMap.width())
                 painter.drawPixmap(rectangle, TraceMap)
         else:
             for TraceMap in self.ViewTraceMap:
@@ -2372,7 +2396,7 @@ class PaneCanvas(QWidget):
             ).normalized()
             painter.drawRect(zoomrect)
 
-        if self.PointerFlag:
+        if self.PointerFlag and not self.Dragging and (self.PointXPx is not None) and (self.PointYPx is not None):
             # self.PointXPx = (self.PointX - self.ViewPort.View_XMin) * (self.width() - 2 * padding) / self.ViewPort.View_XRng + padding
             # self.PointYPx = (self.height() - 2 * padding) - (self.PointY - self.ViewPort.View_YMin) * (self.height() - 2 * padding) / self.ViewPort.View_YRng + padding
             if len(self.HitResult.ClickedIDs) != 0 and self.PointID in self.HitResult.ClickedIDs:  
@@ -3531,14 +3555,16 @@ class HitTest(QObject):
         self.PointMatrix    = np.full((self.Canvas.height() - 2 * padding, self.Canvas.width() - 2 * padding), -1, dtype = np.int32)
         self.TraceMatrix    = []
         self.highlightwidth = 1
+        self.Enable         = True
         
         self.debugonce      = True
     
     def Rebuild(self):
-        if self.Canvas.width() <= 1 or self.Canvas.height() <= 1:
-            return
+        if self.Enable:
+            if self.Canvas.width() <= 1 or self.Canvas.height() <= 1:
+                return
 
-        self.FieldMatrix, self.TraceMatrix, self.PointMatrix = renderCore.hitRebuild(
+            self.FieldMatrix, self.TraceMatrix, self.PointMatrix = renderCore.hitRebuild(
             self.FieldMatrix,
             self.TraceMatrix,
             self.PointMatrix,
@@ -3549,132 +3575,133 @@ class HitTest(QObject):
         )
 
 
-        # if self.FieldMatrix.shape != (self.Canvas.height(), self.Canvas.width()):
-        #     self.FieldMatrix = np.full((self.Canvas.height(), self.Canvas.width()), -1, dtype = np.int32)
-        #     self.PointMatrix = np.full((self.Canvas.height(), self.Canvas.width()), -1, dtype = float)
-        # else:
-        #     self.FieldMatrix.fill(-1)
-        #     self.PointMatrix.fill(-1)
-        
-        # self.highlightwidth = 5
-        # h = self.Canvas.height()
-        # w = self.Canvas.width()
-        # r = self.highlightwidth // 2
-        
-        # self.TraceMatrix = [[] for _ in range(w)]
-
-        # for trace in self.TraceData:
-        #     LocalID   = trace["Local_ID"]
-        #     trcCentrX = trace["CentrX"]
-        #     trcCentrY = trace["CentrY"]
-        #     trcMin    = trace["MinY"]
-        #     trcMax    = trace["MaxY"]
-        
-        #     pts = np.array(
-        #         list(zip(trcCentrX, trcCentrY)),
-        #         dtype=np.int32
-        #         )
-        #     cv2.polylines(
-        #         self.FieldMatrix,
-        #         [pts],
-        #         False,
-        #         LocalID,
-        #         thickness=self.highlightwidth,
-        #         lineType=cv2.LINE_8
-        #     )
-    
-        #     for i, center in enumerate(trcCentrX):
-        #         cx = int(center)
-        #         if (i + 1 < len(trcCentrX)):
-        #             nextCenter = int(trcCentrX[i + 1])
-        #             if nextCenter == center:            # These are pixels which contains indices (so if the same pixel contains > 1 indices, then continue)
-        #                 continue
-
-        #             for x in range(int(center), int(nextCenter)):
-        #                 y = (x - center) * (trcCentrY[i + 1] - trcCentrY[i]) / (nextCenter - center) + trcCentrY[i]
-        #                 py = int(y)
-        #                 self.TraceMatrix[x].append(y)
-        #                 if x < w:
-        #                     rows = np.where(self.FieldMatrix[:, x] == LocalID)[0]
-        #                     splits = np.where(np.diff(rows) > 1)[0] + 1
-        #                     chunks = np.split(rows, splits)
-        #                     for chunk in chunks:
-        #                         self.PointMatrix[chunk, x] = y
-                
-        #         cv2.line(
-        #             self.FieldMatrix,
-        #             (cx, int(trcMin[i])),
-        #             (cx, int(trcMax[i])),
-        #             LocalID,
-        #             thickness = self.highlightwidth
-        #         )
-
-        #     view1 = self.FieldMatrix[145-20:166+20, 95-20:106+20]
-        #     view2 = self.TraceMatrix[145-20:166+20, 95-20:106+20]
-        #     for row in view1:
-        #         print(" ".join(f"{' ':>2}" if v == -1 else f"{int(v):>2}" for v in row))
-        #     for row in view2:
-        #         print(" ".join(f"{' ':>2}" if v == -1 else f"{int(v):>2}" for v in row))
+            # if self.FieldMatrix.shape != (self.Canvas.height(), self.Canvas.width()):
+            #     self.FieldMatrix = np.full((self.Canvas.height(), self.Canvas.width()), -1, dtype = np.int32)
+            #     self.PointMatrix = np.full((self.Canvas.height(), self.Canvas.width()), -1, dtype = float)
+            # else:
+            #     self.FieldMatrix.fill(-1)
+            #     self.PointMatrix.fill(-1)
             
-        self.HitReady.emit()
-        self.get_renderable_image()
-        # print("Hit Rebuild Time =", (time.perf_counter() - t0) * 1000, "mS")
+            # self.highlightwidth = 5
+            # h = self.Canvas.height()
+            # w = self.Canvas.width()
+            # r = self.highlightwidth // 2
+            
+            # self.TraceMatrix = [[] for _ in range(w)]
+
+            # for trace in self.TraceData:
+            #     LocalID   = trace["Local_ID"]
+            #     trcCentrX = trace["CentrX"]
+            #     trcCentrY = trace["CentrY"]
+            #     trcMin    = trace["MinY"]
+            #     trcMax    = trace["MaxY"]
+            
+            #     pts = np.array(
+            #         list(zip(trcCentrX, trcCentrY)),
+            #         dtype=np.int32
+            #         )
+            #     cv2.polylines(
+            #         self.FieldMatrix,
+            #         [pts],
+            #         False,
+            #         LocalID,
+            #         thickness=self.highlightwidth,
+            #         lineType=cv2.LINE_8
+            #     )
+        
+            #     for i, center in enumerate(trcCentrX):
+            #         cx = int(center)
+            #         if (i + 1 < len(trcCentrX)):
+            #             nextCenter = int(trcCentrX[i + 1])
+            #             if nextCenter == center:            # These are pixels which contains indices (so if the same pixel contains > 1 indices, then continue)
+            #                 continue
+
+            #             for x in range(int(center), int(nextCenter)):
+            #                 y = (x - center) * (trcCentrY[i + 1] - trcCentrY[i]) / (nextCenter - center) + trcCentrY[i]
+            #                 py = int(y)
+            #                 self.TraceMatrix[x].append(y)
+            #                 if x < w:
+            #                     rows = np.where(self.FieldMatrix[:, x] == LocalID)[0]
+            #                     splits = np.where(np.diff(rows) > 1)[0] + 1
+            #                     chunks = np.split(rows, splits)
+            #                     for chunk in chunks:
+            #                         self.PointMatrix[chunk, x] = y
+                    
+            #         cv2.line(
+            #             self.FieldMatrix,
+            #             (cx, int(trcMin[i])),
+            #             (cx, int(trcMax[i])),
+            #             LocalID,
+            #             thickness = self.highlightwidth
+            #         )
+
+            #     view1 = self.FieldMatrix[145-20:166+20, 95-20:106+20]
+            #     view2 = self.TraceMatrix[145-20:166+20, 95-20:106+20]
+            #     for row in view1:
+            #         print(" ".join(f"{' ':>2}" if v == -1 else f"{int(v):>2}" for v in row))
+            #     for row in view2:
+            #         print(" ".join(f"{' ':>2}" if v == -1 else f"{int(v):>2}" for v in row))
+                
+            self.HitReady.emit()
+            self.get_renderable_image()
+            # print("Hit Rebuild Time =", (time.perf_counter() - t0) * 1000, "mS")
 
     # Need to update <def AddTrace(self)> ---> Include TraceMatrix and Update PointMatrix
     def AddTrace(self):
-        if Debug: print("HitTest -> AddTrace") # <----------------------------------------------------------------
-        self.highlightwidth = 5
-        h = self.Canvas.height()
-        w = self.Canvas.width()
-        r = self.highlightwidth // 2
+        if self.Enable:
+            if Debug: print("HitTest -> AddTrace") # <----------------------------------------------------------------
+            self.highlightwidth = 5
+            h = self.Canvas.height()
+            w = self.Canvas.width()
+            r = self.highlightwidth // 2
 
-        LocalID   = self.TraceData[-1]["Local_ID"]
-        trcCentrX = self.TraceData[-1]["CentrX"]
-        trcCentrY = self.TraceData[-1]["CentrY"]
-        trcMin    = self.TraceData[-1]["MinY"]
-        trcMax    = self.TraceData[-1]["MaxY"]
-        pts = np.array(
-            list(zip(trcCentrX, trcCentrY)),
-            dtype=np.int32
-            )
+            LocalID   = self.TraceData[-1]["Local_ID"]
+            trcCentrX = self.TraceData[-1]["CentrX"]
+            trcCentrY = self.TraceData[-1]["CentrY"]
+            trcMin    = self.TraceData[-1]["MinY"]
+            trcMax    = self.TraceData[-1]["MaxY"]
+            pts = np.array(
+                list(zip(trcCentrX, trcCentrY)),
+                dtype=np.int32
+                )
 
-        cv2.polylines(
-            self.FieldMatrix,
-            [pts],
-            False,
-            LocalID,
-            thickness=self.highlightwidth,
-            lineType=cv2.LINE_8
-        )
-        NewTracePoints = np.array([])
-        for i, center in enumerate(trcCentrX):
-            if (i + 1 < len(trcCentrX)):
-                nextCenter = int(trcCentrX[i + 1])
-                if nextCenter == center:
-                    continue
-
-                for x in range(int(center), int(nextCenter + 1)):
-                    y = (x - center) * (trcCentrY[i + 1] - trcCentrY[i]) / (nextCenter - center) + trcCentrY[i]
-                    py = int(y)
-                    np.append(NewTracePoints, y, axis = 1)
-                    if x < w:
-                        rows = np.where(self.FieldMatrix[:, x] == LocalID)[0]
-                        splits = np.where(np.diff(rows) > 1)[0] + 1
-                        chunks = np.split(rows, splits)
-                        for chunk in chunks:
-                            self.PointMatrix[chunk, x] = y
-
-            cv2.line(
+            cv2.polylines(
                 self.FieldMatrix,
-                (int(center), int(trcMin[i])),
-                (int(center), int(trcMax[i])),
+                [pts],
+                False,
                 LocalID,
-                thickness = self.highlightwidth
+                thickness=self.highlightwidth,
+                lineType=cv2.LINE_8
             )
+            NewTracePoints = np.array([])
+            for i, center in enumerate(trcCentrX):
+                if (i + 1 < len(trcCentrX)):
+                    nextCenter = int(trcCentrX[i + 1])
+                    if nextCenter == center:
+                        continue
 
-        self.TraceMatrix = np.vstack((self.TraceMatrix, NewTracePoints))
-        
-        self.HitReady.emit()
+                    for x in range(int(center), int(nextCenter + 1)):
+                        y = (x - center) * (trcCentrY[i + 1] - trcCentrY[i]) / (nextCenter - center) + trcCentrY[i]
+                        py = int(y)
+                        np.append(NewTracePoints, y, axis = 1)
+                        if x < w:
+                            rows = np.where(self.FieldMatrix[:, x] == LocalID)[0]
+                            splits = np.where(np.diff(rows) > 1)[0] + 1
+                            chunks = np.split(rows, splits)
+                            for chunk in chunks:
+                                self.PointMatrix[chunk, x] = y
+
+                cv2.line(
+                    self.FieldMatrix,
+                    (int(center), int(trcMin[i])),
+                    (int(center), int(trcMax[i])),
+                    LocalID,
+                    thickness = self.highlightwidth
+                )
+
+            self.TraceMatrix = np.vstack((self.TraceMatrix, NewTracePoints))
+            
+            self.HitReady.emit()
 
     def Query(self, xPix, yPix, appendMode = False, click = True):
         xPix -= padding
