@@ -60,9 +60,7 @@ class MasterWidget(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         self.editor = CodeEditor(self)
-        self.client = LSPClient()
         self.LayoutConfig()
-        self.SignalManager()
 
     def LayoutConfig(self):
         Layout = QHBoxLayout(self)
@@ -70,22 +68,6 @@ class MasterWidget(QWidget):
         Layout.setSpacing(0)
         Layout.addWidget(self.editor.LineWidget)
         Layout.addWidget(self.editor)
-
-    def LSPDocConfig(self):
-        self.client.Document.uri        = self.editor.FilePath
-        self.client.Document.languageId = LANGUAGE_MAP.get(self.editor.FileExt.lower(), "python")
-        self.client.Document.text       = self.editor.toPlainText()
-        if self.editor.NewFile:
-            self.client.Document.version = 1
-            self.editor.NewFile = False
-            self.client.didOpenMessage()
-        else:
-            self.client.Document.version += 1
-            self.client.didChangeMessage()
-
-    def SignalManager(self):
-        self.editor.textChanged.connect(self.LSPDocConfig)
-        self.client.diagnosticsReady.connect(self.editor.diagnose)
 
 
 class LineNumberArea(QWidget):
@@ -478,18 +460,32 @@ class CodeEditor(QPlainTextEdit):
                     self.warnSquiggles.append(warn)
         self.viewport().update()
 
+    def LSPDocConfig(self):
+        self.Language.client.Document.uri        = self.FilePath
+        self.Language.client.Document.languageId = LANGUAGE_MAP.get(self.FileExt.lower(), "python")
+        self.Language.client.Document.text       = self.toPlainText()
+        if self.NewFile:
+            self.Language.client.Document.version = 1
+            self.NewFile = False
+            self.Language.client.didOpenMessage()
+        else:
+            self.Language.client.Document.version += 1
+            self.Language.client.didChangeMessage()
+
     def SignalManager(self):
         self.fileOpenShortcut = QShortcut(QKeySequence("Ctrl+O"), self)
 
-        self.fileOpenShortcut.activated.connect(self.openFile)
-        self.blockCountChanged.connect(self.updateLineData)
-        self.cursorPositionChanged.connect(self.updateLineData)
-        self.cursorPositionChanged.connect(self.HighLightLine)
-        self.updateRequest.connect(self.LineWidget.update)
-        self.selectionChanged.connect(self.updateSelection)
-        self.textChanged.connect(self.reportChange)
-        self.LineWidget.scrollEmit.connect(super().wheelEvent)
-        self.LineWidget.lineSelectEmit.connect(self.selectLine)
+        self.fileOpenShortcut.activated      .connect(self.openFile)
+        self.blockCountChanged               .connect(self.updateLineData)
+        self.cursorPositionChanged           .connect(self.updateLineData)
+        self.cursorPositionChanged           .connect(self.HighLightLine)
+        self.updateRequest                   .connect(self.LineWidget.update)
+        self.selectionChanged                .connect(self.updateSelection)
+        self.textChanged                     .connect(self.reportChange)
+        self.LineWidget.scrollEmit           .connect(super().wheelEvent)
+        self.LineWidget.lineSelectEmit       .connect(self.selectLine)
+        self.textChanged                     .connect(self.LSPDocConfig)
+        self.Language.client.diagnosticsReady.connect(self.diagnose)
 
     def StyleConfig(self):
         self.setStyleSheet(
@@ -587,6 +583,7 @@ class PythonLanguage(codeLanguage):
     def __init__(self, document):
         super().__init__()
         self.highlighter = SyntaxHighlighter(document, self)
+        self.client      = LSPClient()
     
     def nextIndentation(self, cursor : QTextCursor):
         block = cursor.block()
