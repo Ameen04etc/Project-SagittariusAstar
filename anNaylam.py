@@ -21,6 +21,8 @@ from PySide6.QtGui import     (QPainter, QColor, QPen,
 from enum import Enum, auto
 from typing import cast
 from pathlib import Path
+from tree_sitter import Language, Parser
+import tree_sitter_python
 import json
 import os
 import sys
@@ -472,6 +474,17 @@ class CodeEditor(QPlainTextEdit):
             self.Language.client.Document.version += 1
             self.Language.client.didChangeMessage()
 
+    def incrementCapture(self, position, charRem, charAdd):
+        if charAdd > 0:
+            cursor = QTextCursor(self.document())
+            cursor.setPosition(position)
+            cursor.setPosition(position + charAdd, QTextCursor.MoveMode.KeepAnchor)
+            
+            added_text = cursor.selectedText()
+            print(f"Text added: '{added_text}'")
+        if charRem > 0:
+            print(f"{charRem} characters were removed at position {position}")
+
     def SignalManager(self):
         self.fileOpenShortcut = QShortcut(QKeySequence("Ctrl+O"), self)
 
@@ -484,6 +497,7 @@ class CodeEditor(QPlainTextEdit):
         self.textChanged                     .connect(self.reportChange)
         self.LineWidget.scrollEmit           .connect(super().wheelEvent)
         self.LineWidget.lineSelectEmit       .connect(self.selectLine)
+        self.document().contentsChange       .connect(self.incrementCapture)
         self.textChanged                     .connect(self.LSPDocConfig)
         self.Language.client.diagnosticsReady.connect(self.diagnose)
 
@@ -499,6 +513,7 @@ class CodeEditor(QPlainTextEdit):
         )
 
     def keyPressEvent(self, e):
+
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             cursor      = self.textCursor()
             nextIndent  = self.Language.nextIndentation(cursor)
@@ -578,11 +593,23 @@ class codeLanguage:
         raise NotImplementedError
 
 
+class syntaxTree:
+    def __init__(self, language):
+        self.Parser = Parser(language)
+        self.Tree = None
+        self.Source = b""
+    
+    def setSource(self, source):
+        self.Source =  source
+        self.Tree   = self.Parser.parse(self.Source)
+
+
 class PythonLanguage(codeLanguage):
 
     def __init__(self, document):
         super().__init__()
         self.highlighter = SyntaxHighlighter(document, self)
+        self.syntax      = syntaxTree(Language(tree_sitter_python.language()))
         self.client      = LSPClient()
     
     def nextIndentation(self, cursor : QTextCursor):

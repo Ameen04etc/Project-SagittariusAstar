@@ -98,7 +98,7 @@ void rebuildTraceMap(
         QPen thickPen(color, linewidth  );
 
         painter.setPen(thinPen);
-        
+
         std::vector<int>   centerX;
         std::vector<float> centerY;
         std::vector<float> min    ;
