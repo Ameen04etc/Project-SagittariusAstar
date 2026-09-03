@@ -196,6 +196,7 @@ class CodeEditor(QPlainTextEdit):
         self.Ascent     = self.fontMetrics().ascent()
 
         self.SpacePerTab = 4
+        self.OldText     = self.document().toPlainText()
 
         self.setLineWrapMode(
             QPlainTextEdit.LineWrapMode.NoWrap
@@ -206,6 +207,9 @@ class CodeEditor(QPlainTextEdit):
         self.StyleConfig()
         self.HighLightLine()
         self.SignalManager()
+
+        self.Language.syntax.sourceUpdate(self.document().toPlainText().encode())
+        self.Language.syntax.printSyntax()
 
     def paintEvent(self, e):
         painter = QPainter(self.viewport())
@@ -361,9 +365,6 @@ class CodeEditor(QPlainTextEdit):
         toRem = totalSpace % self.SpacePerTab
         if toRem == 0: toRem = self.SpacePerTab
 
-        print("Total =", totalSpace)
-        print(toRem)
-
         spaceCount  = 0
         while True:
             char = codeText.characterAt(blockCursor.position())
@@ -474,16 +475,69 @@ class CodeEditor(QPlainTextEdit):
             self.Language.client.Document.version += 1
             self.Language.client.didChangeMessage()
 
+    def offsetToCoordinates(self, text, offset):
+        preText = text[:offset]
+        Row = preText.count('\n')
+
+        lastNewline = preText.rfind('\n')
+        lineStart   = lastNewline + 1
+        lineText    = text[lineStart:offset]
+
+        Colutf16 = len(lineText.encode("utf-16-le")) // 2
+        Colutf8 = len(lineText.encode("utf-8"))
+        byteOffset = len(preText.encode("utf-8"))
+
+        return Row, Colutf16, Colutf8, byteOffset
+
     def incrementCapture(self, position, charRem, charAdd):
-        if charAdd > 0:
-            cursor = QTextCursor(self.document())
-            cursor.setPosition(position)
-            cursor.setPosition(position + charAdd, QTextCursor.MoveMode.KeepAnchor)
-            
-            added_text = cursor.selectedText()
-            print(f"Text added: '{added_text}'")
-        if charRem > 0:
-            print(f"{charRem} characters were removed at position {position}")
+        newText = self.document().toPlainText()
+
+        oldStart = position
+        oldEnd   = position + charRem
+        oldStartRow, oldStartCol16, oldStartCol8, oldStartByte = self.offsetToCoordinates(self.OldText, oldStart)
+        oldEndRow  , oldEndCol16  , oldEndCol8  , oldEndByte   = self.offsetToCoordinates(self.OldText, oldEnd)
+
+        newStart = position
+        newEnd   = position + charAdd
+        # newStartRow, newStartCol16, newStartCol8, newStartByte = self.offsetToCoordinates(newText, newStart)
+        newEndRow  , newEndCol16  , newEndCol8  , newEndByte   = self.offsetToCoordinates(newText, newEnd)
+
+        # print("EDIT")
+        # print("Start:", (oldStartRow, oldStartCol16), oldStartByte)
+        # print("Old End:", (oldEndRow, oldEndCol16), oldEndByte)
+        # print("New End:", (newEndRow, newEndCol16), newEndByte)
+
+        self.Language.syntax.Tree.edit(
+            start_byte   = oldStartByte,
+            old_end_byte = oldEndByte,
+            new_end_byte = newEndByte,
+
+            start_point   = (oldStartRow, oldStartCol8),
+            old_end_point = (oldEndRow, oldEndCol8),
+            new_end_point = (newEndRow, newEndCol8),
+        )
+
+        self.Language.syntax.sourceUpdate(newText.encode("utf-8"))
+
+        self.OldText = newText
+
+    def fetchCursorNode(self):
+        cursor   = self.textCursor()
+        position = cursor.position()
+        text = self.toPlainText()
+        row, col16, col8, byteOffset = self.offsetToCoordinates(text, position)
+
+        node = self.Language.syntax.Tree.root_node.named_descendant_for_byte_range(byteOffset, byteOffset)
+        
+        while node:
+            print(node.type)
+            node = node.parent
+
+    def inputMethodEvent(self, event):
+        if event.commitString():
+            cursor = self.textCursor()
+            cursor.insertText(event.commitString())
+            self.setTextCursor(cursor)
 
     def SignalManager(self):
         self.fileOpenShortcut = QShortcut(QKeySequence("Ctrl+O"), self)
@@ -557,6 +611,20 @@ class CodeEditor(QPlainTextEdit):
 
         super().keyPressEvent(e)
 
+    def mousePressEvent(self, e):
+        # self.Language.syntax.printSyntax()
+        # print("\n")
+        # print("SOURCE =", repr(self.document().toPlainText()))
+        # print("TREE SOURCE =", self.Language.syntax.Tree.root_node.text)
+        print("-------------------")
+        # source = b"x = 10"
+        # tree = Parser(Language(tree_sitter_python.language())).parse(source)
+        # node = tree.root_node.named_descendant_for_byte_range(0, 1)
+        # print(node.type)
+        # print(node.text)
+        super().mousePressEvent(e)
+        QTimer.singleShot(50, self.fetchCursorNode)
+
 
 class CodeSelection:
     def __init__(self):
@@ -596,12 +664,39 @@ class codeLanguage:
 class syntaxTree:
     def __init__(self, language):
         self.Parser = Parser(language)
-        self.Tree = None
         self.Source = b""
-    
-    def setSource(self, source):
-        self.Source =  source
         self.Tree   = self.Parser.parse(self.Source)
+    
+    def sourceUpdate(self, source):
+        self.Source =  source
+        self.Tree   = self.Parser.parse(self.Source, self.Tree)
+
+    def printSyntax(self, node = None, prefix="", is_last=True, is_root=True, field_name=None):
+        if node is None: node = self.Tree.root_node
+        if is_root:
+            print(f"({node.type})")
+            new_prefix = ""
+        else:
+            connector = "└── " if is_last else "├── "
+            field_str = f"{field_name}: " if field_name else ""
+            print(f"{prefix}{connector}{field_str}({node.type})")
+
+            new_prefix = prefix + ("    " if is_last else "│   ")
+
+        children = []
+        cursor = node.walk()
+        if cursor.goto_first_child():
+            while True:
+                if cursor.node.is_named:
+                    children.append((cursor.node, cursor.field_name))
+                if not cursor.goto_next_sibling():
+                    break
+            cursor.goto_parent()
+
+        # Recursion
+        for i, (child_node, child_field) in enumerate(children):
+            is_last_child = i == (len(children) - 1)
+            self.printSyntax(child_node, new_prefix, is_last_child, False, child_field)
 
 
 class PythonLanguage(codeLanguage):

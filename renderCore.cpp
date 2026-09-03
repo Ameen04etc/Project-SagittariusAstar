@@ -153,7 +153,7 @@ void rebuildTraceMap(
             max    .push_back(   postYPx  );
         }
 
-        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setRenderHint(QPainter::Antialiasing, false);
         painter.setPen(thickPen);
 
         QList<QPointF> points;
@@ -163,9 +163,9 @@ void rebuildTraceMap(
         }
         painter.drawPolyline(points);
 
-        painter.setRenderHint(QPainter::Antialiasing, false);
+        painter.setRenderHint(QPainter::Antialiasing, true);
         painter.end();
-        
+
         py::dict traceinfo;
 
         traceinfo["Global_ID"] = globalID;

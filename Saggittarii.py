@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Sagittarius A*")
         self.ui.setupUi(self)
 
+
         self.database_startup()
         self.Terminal = MainTermWidget(self.ui.terminalout)
         terminal_layout = QVBoxLayout(self.ui.terminalout)
@@ -36,26 +37,27 @@ class MainWindow(QMainWindow):
 
 
         self.x        = np.linspace(0,10,200000)
-        self.signal1  = np.sin(self.x); """+ np.sin(100 * self.x)"""
+        self.signal1  = np.sin(10002337*self.x); """+ np.sin(100 * self.x)"""
         self.signal2  = np.cos(self.x)
         self.signal2  = np.ones(len(self.x))
-        self.signal2[9990:10010] -= 1
+        self.signal2[9990:10010]  -= 1
         self.signal2[19980:20000] += 2
         self.signal3  = np.sinc(self.x)
         self.signal4  = self.signal1**3
         self.signal5  = np.sqrt(np.sqrt(self.x))
-        T = 0.9
+        T = 0.001
         self.signal6  = self.tanh_square_wave(self.x, T)
+
 
         self.wavewindow   = WaveWindow(self.ui.WaveWindow)
         self.wavewindow.SetAxis(self.x)
         self.wavewindow.AddSignal(self.signal1, "signal1")
-        self.wavewindow.AddSignal(self.signal2, "signal2")
-        self.wavewindow.AddSignal(self.signal3, "signal3")
-        self.wavewindow.AddSignal(self.signal4, "signal4")
-        self.wavewindow.AddSignal(self.signal5, "signal5")
+        # self.wavewindow.AddSignal(self.signal2, "signal2")
+        # self.wavewindow.AddSignal(self.signal3, "signal3")
+        # self.wavewindow.AddSignal(self.signal4, "signal4")
+        # self.wavewindow.AddSignal(self.signal5, "signal5")
         self.wavewindow.AddSignal(self.signal6, "signal6")
-        self.wavewindow.AddSignal(self.signal6**2, "signal7")
+        # self.wavewindow.AddSignal(self.signal6**2, "signal7")
 
 
     def database_startup(self):       
@@ -187,7 +189,7 @@ class MainWindow(QMainWindow):
     #         )
     #         self.ui.commandline.clear()
 
-    def tanh_square_wave(self, t, T, steepness=5.0, low=-1.0, high=1.0):
+    def tanh_square_wave(self, t, T, steepness=50.0, low=-1.0, high=1.0):
         """
         Generates a 50% duty cycle square wave with tanh transitions.
         
