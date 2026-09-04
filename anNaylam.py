@@ -33,11 +33,11 @@ import time
 import shiboken6
 import traceback
 
-RED = "\033[31m"
-GREEN = "\033[32m"
+RED    = "\033[31m"
+GREEN  = "\033[32m"
 YELLOW = "\033[33m"
-BLUE = "\033[34m"
-RESET = "\033[0m"
+BLUE   = "\033[34m"
+RESET  = "\033[0m"
 
 LANGUAGE_MAP = {
     ".py"   : "python",
@@ -48,6 +48,23 @@ LANGUAGE_MAP = {
     ".json" : "json",
     ".cpp"  : "cpp",
     ".c"    : "c"
+}
+
+VS_CONTROL_FLOW = {
+    "if", "elif", "else", "for", "while", "break", "continue", 
+    "return", "yield", "try", "except", "finally", "raise", 
+    "match", "case", "with"
+}
+
+VS_KEYWORDS = {
+    "lambda", "global", "nonlocal", "pass", 
+    "True", "False", "None", 
+    "and", "or", "not", "is", "in", "async", "await"
+}
+
+VS_OPERATORS = {
+    "+", "-", "*", "/", "%", "**", "//", "=", "==", "!=", 
+    "<", ">", "<=", ">=", "@", "&", "|", "^", "~", "<<" , ">>"
 }
 
 
@@ -170,11 +187,12 @@ class CodeEditor(QPlainTextEdit):
 
     def __init__(self, parent = None):
         super().__init__(parent)
-        self.Language  = PythonLanguage(self.document())
+        self.Language  = PythonLanguage(self.document(), self)
         self.version   = 1
         self.FilePath  = None
         self.FileExt   = "plaintext"
         self.NewFile   = False
+        self.LoadFile  = False
         self.Selection = CodeSelection()
 
         self.errSelections = []
@@ -186,8 +204,11 @@ class CodeEditor(QPlainTextEdit):
         self.Font = QFont()
         self.Font.setFamilies(["Consolas", "Courier New"])
         self.Font.setPixelSize(15)
-
         self.setFont(self.Font)
+
+        self.NormalFormat = QTextCharFormat()
+        self.NormalFormat.setForeground(QColor("white"))
+        self.textCursor().mergeCharFormat(self.NormalFormat)
 
         self.LineWidget = LineNumberArea(self.parent(), self, self.Font)
 
@@ -209,7 +230,11 @@ class CodeEditor(QPlainTextEdit):
         self.SignalManager()
 
         self.Language.syntax.sourceUpdate(self.document().toPlainText().encode())
-        self.Language.syntax.printSyntax()
+        # self.Language.syntax.printSyntax()
+        self.oldTree = self.Language.syntax.Tree
+        self.newTree = self.Language.syntax.Tree
+        self.oldNode = self.Language.syntax.Tree.root_node
+        self.newNode = self.Language.syntax.Tree.root_node
 
     def paintEvent(self, e):
         painter = QPainter(self.viewport())
@@ -429,7 +454,13 @@ class CodeEditor(QPlainTextEdit):
             _, self.FileExt = os.path.splitext(filepath)    # Splits "C:/scripts/main.py" into ("C:/scripts/main", ".py")
             with open(filepath, "r", encoding = "utf-8") as file:
                 text = file.read()
+
+            self.LoadFile = True
             self.setPlainText(text)
+            self.LoadFile = False
+            self.Language.syntax.sourceUpdate(self.toPlainText().encode("utf-8"), incremental = False)
+            # self.highlightNode()
+            self.Language.Highlighter.rehighlight()
 
     def diagnose(self, uri, version, diagnostics : dict):
         print("Current =", self.version)
@@ -489,7 +520,16 @@ class CodeEditor(QPlainTextEdit):
 
         return Row, Colutf16, Colutf8, byteOffset
 
+    def byteToQOffset(self, text, byteOffset):
+        encoded = text.encode("utf-8")
+        prefix  = encoded[:byteOffset]
+        decoded = prefix.decode("utf-8").encode("utf-16-le")
+        return len(decoded) // 2
+
     def incrementCapture(self, position, charRem, charAdd):
+        if self.LoadFile:
+            return
+        # print("---------------------------------------")
         newText = self.document().toPlainText()
 
         oldStart = position
@@ -497,15 +537,8 @@ class CodeEditor(QPlainTextEdit):
         oldStartRow, oldStartCol16, oldStartCol8, oldStartByte = self.offsetToCoordinates(self.OldText, oldStart)
         oldEndRow  , oldEndCol16  , oldEndCol8  , oldEndByte   = self.offsetToCoordinates(self.OldText, oldEnd)
 
-        newStart = position
         newEnd   = position + charAdd
-        # newStartRow, newStartCol16, newStartCol8, newStartByte = self.offsetToCoordinates(newText, newStart)
         newEndRow  , newEndCol16  , newEndCol8  , newEndByte   = self.offsetToCoordinates(newText, newEnd)
-
-        # print("EDIT")
-        # print("Start:", (oldStartRow, oldStartCol16), oldStartByte)
-        # print("Old End:", (oldEndRow, oldEndCol16), oldEndByte)
-        # print("New End:", (newEndRow, newEndCol16), newEndByte)
 
         self.Language.syntax.Tree.edit(
             start_byte   = oldStartByte,
@@ -516,22 +549,59 @@ class CodeEditor(QPlainTextEdit):
             old_end_point = (oldEndRow, oldEndCol8),
             new_end_point = (newEndRow, newEndCol8),
         )
-
         self.Language.syntax.sourceUpdate(newText.encode("utf-8"))
+        # self.Language.syntax.printSyntax()
+        # print("---")
+        changed_ranges = self.oldTree.changed_ranges(self.Language.syntax.Tree)
 
+        for rng in changed_ranges:
+            start_block_num = rng.start_point[0]
+            end_block_num = rng.end_point[0]
+            
+            for block_num in range(start_block_num, end_block_num + 1):
+                block = self.document().findBlockByNumber(block_num)
+                if block.isValid():
+                    self.Language.Highlighter.rehighlightBlock(block)
+
+        self.newNode = self.fetchCursorNode()
+        self.oldNode = self.newNode
         self.OldText = newText
+        self.oldTree = self.Language.syntax.Tree
 
-    def fetchCursorNode(self):
-        cursor   = self.textCursor()
-        position = cursor.position()
+    def fetchCursorNode(self, Tree = None, position =  None):
+        if Tree is None: Tree = self.Language.syntax.Tree
+        cursor = self.textCursor()
+        if position is None:
+            position = cursor.position()
+        elif position < 0:
+            position += 1
         text = self.toPlainText()
         row, col16, col8, byteOffset = self.offsetToCoordinates(text, position)
+        byteOffset = max(0, byteOffset - 1)
 
-        node = self.Language.syntax.Tree.root_node.named_descendant_for_byte_range(byteOffset, byteOffset)
-        
-        while node:
-            print(node.type)
-            node = node.parent
+        node = Tree.root_node.named_descendant_for_byte_range(byteOffset, byteOffset)
+
+        return node
+
+    def fetchLastCommonParent(self, oldNode, newNode):
+        # print("oldNode =", oldNode.type)
+        # print("newNode =", newNode.type)
+        if oldNode is None or newNode is None:
+            return None
+
+        oldAncestors = set()
+        old = oldNode.parent
+        while old is not None:
+            oldAncestors.add(old.type)
+            old = old.parent
+
+        new = newNode.parent
+        while new is not None:
+            if new.type in oldAncestors:
+                return new
+            new = new.parent
+
+        return None
 
     def inputMethodEvent(self, event):
         if event.commitString():
@@ -610,20 +680,19 @@ class CodeEditor(QPlainTextEdit):
                 return
 
         super().keyPressEvent(e)
+        self.oldNode = self.fetchCursorNode()
 
     def mousePressEvent(self, e):
-        # self.Language.syntax.printSyntax()
-        # print("\n")
-        # print("SOURCE =", repr(self.document().toPlainText()))
-        # print("TREE SOURCE =", self.Language.syntax.Tree.root_node.text)
-        print("-------------------")
-        # source = b"x = 10"
-        # tree = Parser(Language(tree_sitter_python.language())).parse(source)
-        # node = tree.root_node.named_descendant_for_byte_range(0, 1)
-        # print(node.type)
-        # print(node.text)
         super().mousePressEvent(e)
-        QTimer.singleShot(50, self.fetchCursorNode)
+        self.oldNode = self.fetchCursorNode()
+        # self.Language.syntax.printSyntax()
+        print("Node =", self.oldNode)
+        if self.oldNode.parent:
+            print("Parent =", self.oldNode.parent)
+        print("------")
+        # self.Language.syntax.printAllNodes()
+        # self.highlightNode()
+        # QTimer.singleShot(1000, lambda: self.clearHighlight(4, 7))
 
 
 class CodeSelection:
@@ -667,9 +736,10 @@ class syntaxTree:
         self.Source = b""
         self.Tree   = self.Parser.parse(self.Source)
     
-    def sourceUpdate(self, source):
+    def sourceUpdate(self, source, incremental = True):
         self.Source =  source
-        self.Tree   = self.Parser.parse(self.Source, self.Tree)
+        if incremental: self.Tree   = self.Parser.parse(self.Source, self.Tree)
+        else: self.Tree   = self.Parser.parse(self.Source)
 
     def printSyntax(self, node = None, prefix="", is_last=True, is_root=True, field_name=None):
         if node is None: node = self.Tree.root_node
@@ -698,13 +768,20 @@ class syntaxTree:
             is_last_child = i == (len(children) - 1)
             self.printSyntax(child_node, new_prefix, is_last_child, False, child_field)
 
+    def printAllNodes(self, node = None):
+        if node is None: node = self.Tree.root_node
+        print(node.type, node.start_point, node.end_point)
+
+        for child in node.children:
+            self.printAllNodes(child)
+
 
 class PythonLanguage(codeLanguage):
 
-    def __init__(self, document):
+    def __init__(self, document, editor):
         super().__init__()
-        self.highlighter = SyntaxHighlighter(document, self)
         self.syntax      = syntaxTree(Language(tree_sitter_python.language()))
+        self.Highlighter = syntaxHighlighter(document, self.syntax, editor)
         self.client      = LSPClient()
     
     def nextIndentation(self, cursor : QTextCursor):
@@ -733,48 +810,101 @@ class PythonLanguage(codeLanguage):
         }
 
 
-class SyntaxHighlighter(QSyntaxHighlighter):
-
-    def __init__(self, document, language : codeLanguage):
+class syntaxHighlighter(QSyntaxHighlighter):
+    def __init__(self, document, syntax, editor):
         super().__init__(document)
-        self.language = language
-
-        self.keywordFormat = QTextCharFormat()
-        self.keywordFormat.setForeground(QColor("#F45A98"))
-
-        self.commentFormat = QTextCharFormat()
-        self.commentFormat.setForeground(QColor("#5B5A5B"))
-
-        self.keywordRegex = QRegularExpression(
-            r"\b(" + "|".join(language.keyWords()) + r")\b"
-        )
+        self.syntax = syntax
+        self.editor = editor
 
     def highlightBlock(self, text):
-        match = self.keywordRegex.match(text)
+        if not self.syntax.Tree: return
 
-        while match.hasMatch():
-            start = match.capturedStart()
-            length = match.capturedLength()
-
-            self.setFormat(
-                start,
-                length,
-                self.keywordFormat
-            )
-
-            match = self.keywordRegex.match(
-                text,
-                start + length
-            )
+        blockNumber = self.currentBlock().blockNumber()
         
-        commentStart = text.find(self.language.commentSyntax())
+        line_bytes = text.encode("utf-8")
 
-        if commentStart != -1:
-            self.setFormat(
-                commentStart,
-                len(text) - commentStart,
-                self.commentFormat
-            )
+        stack = [self.syntax.Tree.root_node]
+
+        while stack:
+            currentNode = stack.pop()
+
+            start_row = currentNode.start_point[0]
+            end_row = currentNode.end_point[0]
+
+            if end_row < blockNumber or start_row > blockNumber:
+                continue
+                
+            stack.extend(reversed(currentNode.children))
+
+            applied = False
+            format = QTextCharFormat()
+            format.setFontItalic(False)
+
+            if currentNode.type in VS_CONTROL_FLOW:
+                format.setForeground(QColor("#C586C0"))
+                applied = True
+            elif currentNode.type in VS_KEYWORDS:
+                format.setForeground(QColor("#2679BD"))
+                applied = True
+            elif currentNode.type in {"import", "from", "as"}:
+                format.setForeground(QColor("#c586c0"))
+                applied = True
+            elif currentNode.type in {"def", "class"}:
+                format.setForeground(QColor("#fe7b72"))
+                applied = True
+            elif currentNode.type in {"integer", "float", "complex"}:
+                format.setForeground(QColor("#B5CEA8"))
+                applied = True
+            elif currentNode.type == "escape_sequence":
+                format.setForeground(QColor("#CE9178"))
+                applied = True
+            elif currentNode.type in {"string", "string_start", "string_content", "string_end"}:
+                format.setForeground(QColor("#a5d6ff"))
+                applied = True
+            elif currentNode.type == "comment":
+                format.setForeground(QColor("#8b949e")) 
+                format.setFontItalic(True)
+                applied = True
+            elif currentNode.type == "identifier":
+                parent = currentNode.parent
+                applied = True
+                if parent is not None:
+                    if parent.type == "call" and parent.child_by_field_name("function") == currentNode:
+                        format.setForeground(QColor("#d2a8f7"))
+                    elif parent.type == "function_definition" and parent.child_by_field_name("name") == currentNode:
+                        format.setForeground(QColor("#d2a8f7"))
+                    elif parent.type == "class_definition" and parent.child_by_field_name("name") == currentNode:
+                        format.setForeground(QColor("#4dc1a0"))
+                    elif parent.type == "decorator":
+                        format.setForeground(QColor("#DCDCAA"))
+                    elif  parent.type == "dotted_name":
+                        format.setForeground(QColor("#4bc9b0"))
+                    elif parent.type == "argument_list":
+                        format.setForeground(QColor("#4dc1a0"))
+                    else:
+                        format.setForeground(QColor("#FFFFFF"))
+                else:
+                    format.setForeground(QColor("#9CDCFE"))
+            elif currentNode.type in VS_OPERATORS or currentNode.type in {"(", ")", "[", "]", "{", "}", ":", ",", "."}:
+                format.setForeground(QColor("#FFFFFF"))
+                applied = True
+            else:
+                format.setForeground(QColor("#FFFFFF"))
+                applied = True
+
+            if applied:
+                start_byte_col = currentNode.start_point[1] if start_row == blockNumber else 0
+                end_byte_col = currentNode.end_point[1] if end_row == blockNumber else len(line_bytes)
+                
+                try:
+                    startChar = len(line_bytes[:start_byte_col].decode("utf-8").encode("utf-16-le")) // 2
+                    endChar = len(line_bytes[:end_byte_col].decode("utf-8").encode("utf-16-le")) // 2
+                    
+                    length = endChar - startChar
+                    if length > 0:
+                        self.setFormat(startChar, length, format)
+                except UnicodeDecodeError:
+                    pass
 
 
 class readBufferState(Enum):
